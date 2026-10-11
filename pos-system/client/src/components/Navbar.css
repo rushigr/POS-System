@@ -1,0 +1,138 @@
+.navbar {
+    width: 100%;
+    min-height: 64px;
+    box-sizing: border-box;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 30px;
+
+    background-color: #1f2937;
+    color: white;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.navbar-brand a {
+    color: white;
+    text-decoration: none;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.navbar-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+
+    padding: 10px 14px;
+
+    color: #d1d5db;
+    text-decoration: none;
+
+    border-radius: 6px;
+
+    font-size: 15px;
+    font-weight: 500;
+
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: #374151;
+    color: white;
+}
+
+.nav-link.active {
+    background-color: #2563eb;
+    color: white;
+}
+
+.logout-button {
+    margin-left: 8px;
+
+    padding: 10px 14px;
+
+    border: none;
+    border-radius: 6px;
+
+    background-color: #dc2626;
+    color: white;
+
+    font-size: 15px;
+    font-weight: 500;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.logout-button:hover {
+    background-color: #b91c1c;
+}
+
+.logout-button:active {
+    transform: scale(0.97);
+}
+
+/* mobile */
+@media (max-width: 800px) {
+    .navbar {
+        flex-direction: column;
+        align-items: stretch;
+
+        padding: 15px;
+    }
+
+    .navbar-brand {
+        text-align: center;
+        margin-bottom: 12px;
+    }
+
+    .navbar-links {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .nav-link,
+    .logout-button {
+        font-size: 14px;
+        padding: 8px 11px;
+    }
+
+    .logout-button {
+        margin-left: 0;
+    }
+}
+
+/* phones */
+@media (max-width: 500px) {
+    .navbar-links {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        width: 100%;
+    }
+
+    .nav-link,
+    .logout-button {
+        width: 100%;
+        box-sizing: border-box;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .logout-button {
+        margin: 0;
+    }
+}

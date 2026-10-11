@@ -1,0 +1,44 @@
+.dashboard-page {
+    padding: 30px;
+    max-width: 1200px;
+    margin: auto;
+}
+
+.dashboard-page h1 {
+    margin-bottom: 25px;
+}
+
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.dashboard-card {
+    background-color: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e5e7eb;
+}
+
+.dashboard-card h2 {
+    margin: 0 0 8px;
+    font-size: 28px;
+    color: #2563eb;
+}
+
+.dashboard-card p {
+    margin: 0;
+    color: #6b7280;
+}
+
+@media (max-width: 800px) {
+    .dashboard-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-page {
+        padding: 20px;
+    }
+}

@@ -1,0 +1,251 @@
+.pos-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+.pos-page h1 {
+    margin-bottom: 25px;
+    color: #111827;
+}
+
+/* Keep Products and Checkout side-by-side */
+.pos-layout {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 25px;
+    align-items: start;
+}
+
+.pos-section {
+    background-color: white;
+    padding: 25px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.pos-section h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #374151;
+}
+
+/* Search and category filter */
+.product-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.search-input {
+    flex: 2;
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.category-select {
+    flex: 1;
+    min-width: 130px;
+    padding: 11px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background-color: white;
+    color: #374151;
+    font-size: 14px;
+}
+
+.search-input:focus,
+.category-select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+/* Product list */
+.products-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pos-product {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background-color: #f9fafb;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+}
+
+.product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.product-info strong {
+    color: #111827;
+    font-size: 15px;
+}
+
+.product-info span {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.pos-product button {
+    flex-shrink: 0;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+.pos-product button:hover {
+    background-color: #1d4ed8;
+}
+
+.no-products {
+    text-align: center;
+    padding: 25px;
+    color: #6b7280;
+}
+
+/* Checkout */
+.cart-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.cart-item-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    color: #4b5563;
+}
+
+.remove-button {
+    width: 100%;
+    padding: 7px 10px;
+    background-color: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.remove-button:hover {
+    background-color: #b91c1c;
+}
+
+.total {
+    font-size: 22px;
+    font-weight: bold;
+    color: #111827;
+    margin-top: 20px;
+}
+
+.payment-input {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
+.payment-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.change {
+    font-size: 18px;
+    font-weight: 600;
+    color: #16a34a;
+    margin-top: 15px;
+}
+
+.checkout-button {
+    width: 100%;
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.checkout-button:hover {
+    background-color: #1d4ed8;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+    .pos-page {
+        padding: 20px;
+    }
+
+    .pos-layout {
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .pos-section {
+        padding: 18px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 650px) {
+    .pos-page {
+        padding: 15px;
+    }
+
+    /*
+       Still keep Products and Checkout side-by-side.
+       The page itself can scroll horizontally instead of
+       pushing Checkout underneath the entire product list.
+    */
+    .pos-layout {
+        display: grid;
+        grid-template-columns: minmax(300px, 1fr) minmax(260px, 0.9fr);
+        gap: 15px;
+        min-width: 590px;
+    }
+
+    .pos-page {
+        overflow-x: auto;
+    }
+
+    .product-controls {
+        flex-direction: column;
+    }
+
+    .search-input,
+    .category-select {
+        width: 100%;
+    }
+
+    .pos-product {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .pos-product button {
+        width: auto;
+    }
+}

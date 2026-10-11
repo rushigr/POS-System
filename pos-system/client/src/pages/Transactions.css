@@ -1,0 +1,51 @@
+.transactions-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+.transactions-page h1 {
+    margin-bottom: 25px;
+    color: #111827;
+}
+
+.transaction-card {
+    background-color: white;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.transaction-card h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #2563eb;
+    font-size: 18px;
+}
+
+.transaction-card p {
+    margin: 8px 0;
+    color: #4b5563;
+}
+
+.transaction-card strong {
+    color: #374151;
+}
+
+.transaction-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 18px;
+}
+
+@media (max-width: 800px) {
+    .transactions-page {
+        padding: 20px;
+    }
+
+    .transaction-card {
+        padding: 16px;
+    }
+}
