@@ -53,8 +53,8 @@ function Dashboard() {
             try {
                 const [transactionResponse, productResponse] =
                     await Promise.all([
-                        fetch(`${API_URL}/transactions`),
-                        fetch(`${API_URL}/products`)
+                        fetch(`${API_URL}/api/transactions`),
+                        fetch(`${API_URL}/api/products`)
                     ]);
 
                 if (!transactionResponse.ok || !productResponse.ok) {
