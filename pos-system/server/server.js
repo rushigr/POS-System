@@ -16,7 +16,7 @@ const app = express();
 app.use(cors({
     origin: "https://pos-system-ten-lac.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization", "x-username"]
 }));
 
 app.use(express.json());
