@@ -83,16 +83,18 @@ function Navbar() {
                 </Link>
 
                 {/* Users */}
-                <Link
-                    to="/users"
-                    className={
-                        location.pathname === "/users"
-                            ? "nav-link active"
-                            : "nav-link"
-                    }
-                >
-                    Users
-                </Link>
+                {user?.role === "admin" && (
+                    <Link
+                        to="/users"
+                        className={
+                            location.pathname === "/users"
+                                ? "nav-link active"
+                                : "nav-link"
+                        }
+                    >
+                        Users
+                    </Link>
+                )}
 
                 {/* Logout */}
                 <button
