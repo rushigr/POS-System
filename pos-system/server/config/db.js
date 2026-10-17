@@ -7,13 +7,8 @@ const connectDB = async () => {
         console.log("MongoDB connected");
         console.log("Database:", mongoose.connection.name);
         console.log("Host:", mongoose.connection.host);
-
-        console.log("Database:", User.db.name);
-        console.log("Collection:", User.collection.name);
-        console.log("Username received:", JSON.stringify(username));
-        console.log("User count:", await User.countDocuments());
     } catch (error) {
-        console.error("MongoDB connection failed:", error.message);
+        console.error("Full error:", error);
         process.exit(1);
     }
 };
