@@ -13,11 +13,19 @@ const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
-app.use(cors({
+const corsOptions = {
     origin: "https://pos-system-ten-lac.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-username"]
-}));
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "x-username"
+    ],
+    optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+app.options("/api/users", cors(corsOptions));
 
 app.use(express.json());
 
