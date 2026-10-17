@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Users.css";
+import API_URL from "../api";
 
 function Users() {
     const navigate = useNavigate();
@@ -33,7 +34,7 @@ function Users() {
     const loadUsers = async () => {
         try {
             const response = await fetch(
-                "http://localhost:5000/api/users",
+                "${API_URL}/api/users",
                 {
                     headers: getHeaders()
                 }
@@ -97,8 +98,8 @@ function Users() {
         try {
             const response = await fetch(
                 editingId
-                    ? `http://localhost:5000/api/users/${editingId}`
-                    : "http://localhost:5000/api/users",
+                    ? `${API_URL}/api/users/${editingId}`
+                    : "${API_URL}/api/users",
                 {
                     method: editingId ? "PUT" : "POST",
                     headers: getHeaders(),
@@ -148,7 +149,7 @@ function Users() {
 
         try {
             const response = await fetch(
-                `http://localhost:5000/api/users/${user._id}`,
+                `${API_URL}/api/users/${user._id}`,
                 {
                     method: "DELETE",
                     headers: getHeaders()

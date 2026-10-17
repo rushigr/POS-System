@@ -14,7 +14,9 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: "https://pos-system-9yeh.onrender.com"
+}));
 app.use(express.json());
 
 app.get("/", (req, res) => {

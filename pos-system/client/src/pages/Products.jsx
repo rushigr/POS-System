@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Products.css";
+import API_URL from "../api";
 
 const categories = [
     "Ramen",
@@ -42,7 +43,7 @@ function Products() {
     const loadProducts = async () => {
         try {
             const response = await fetch(
-                "http://localhost:5000/api/products"
+                "${API_URL}/api/products"
             );
 
             const data = await response.json();
@@ -68,7 +69,7 @@ function Products() {
             if (editingId) {
                 // UPDATE
                 response = await fetch(
-                    `http://localhost:5000/api/products/${editingId}`,
+                    `${API_URL}/api/products/${editingId}`,
                     {
                         method: "PUT",
                         headers: {
@@ -80,7 +81,7 @@ function Products() {
             } else {
                 // ADD
                 response = await fetch(
-                    "http://localhost:5000/api/products",
+                    "${API_URL}/api/products",
                     {
                         method: "POST",
                         headers: {
@@ -122,7 +123,7 @@ function Products() {
 
         try {
             const response = await fetch(
-                `http://localhost:5000/api/products/${id}`,
+                `${API_URL}api/products/${id}`,
                 {
                     method: "DELETE"
                 }

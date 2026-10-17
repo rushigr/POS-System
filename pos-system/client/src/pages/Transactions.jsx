@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import "./Transactions.css";
+import API_URL from "../api";
 
 function Transactions() {
     const [transactions, setTransactions] = useState([]);
 
     useEffect(() => {
-        fetch("http://localhost:5000/api/transactions")
+        fetch("${API_URL}/api/transactions")
             .then((response) => response.json())
             .then((data) => setTransactions(data))
             .catch((error) => console.error(error));

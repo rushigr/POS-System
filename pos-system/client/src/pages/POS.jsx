@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./POS.css";
+import API_URL from "../api";
 
 const categories = [
     "All",
@@ -18,7 +19,7 @@ function POS() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
-        fetch("http://localhost:5000/api/products")
+        fetch("${API_URL}/api/products")
             .then((response) => response.json())
             .then((data) => setProducts(data))
             .catch((error) => console.error(error));
@@ -66,7 +67,7 @@ function POS() {
                 price: product.price,
                 quantity: 1
             })),
-            subtotal: total,
+            subtotal: total, 
             total: total,
             amountPaid: Number(amountPaid),
             change: change,
@@ -75,7 +76,7 @@ function POS() {
 
         try {
             const response = await fetch(
-                "http://localhost:5000/api/transactions",
+                "https://pos-system-9yeh.onrender.com/api/transactions",
                 {
                     method: "POST",
                     headers: {
