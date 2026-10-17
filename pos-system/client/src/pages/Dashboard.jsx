@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import "./Dashboard.css";
 
-const API_URL = "http://localhost:5000/api";
+import API_URL from "../api";
 
 function getLocalMonth() {
     const now = new Date();

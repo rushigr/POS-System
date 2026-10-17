@@ -13,31 +13,15 @@ router.post("/login", async (req, res) => {
             });
         }
 
-        console.log("Database:", User.db.name);
-        console.log("Collection:", User.collection.name);
-        console.log("Username received:", JSON.stringify(username));
-        console.log("User count:", await User.countDocuments());
-
-        const user = await User.findOne({
-            username: username.trim()
-        });
+        const user = await User.findOne({ username });
 
         if (!user) {
-            console.log("Login failed: username not found");
-            return res.status(401).json({
-                message: "Invalid username or password"
-            });
-        }
-
-        if (!user) {
-            console.log("Login failed: username not found");
             return res.status(401).json({
                 message: "Invalid username or password"
             });
         }
 
         if (user.password !== password) {
-            console.log("Login failed: password mismatch");
             return res.status(401).json({
                 message: "Invalid username or password"
             });
