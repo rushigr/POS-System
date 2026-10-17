@@ -43,7 +43,7 @@ function Products() {
     const loadProducts = async () => {
         try {
             const response = await fetch(
-                "${API_URL}/api/products"
+                `${API_URL}/api/products`
             );
 
             const data = await response.json();
@@ -81,7 +81,7 @@ function Products() {
             } else {
                 // ADD
                 response = await fetch(
-                    "${API_URL}/api/products",
+                    `${API_URL}/api/products`,
                     {
                         method: "POST",
                         headers: {

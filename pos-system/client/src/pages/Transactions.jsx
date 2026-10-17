@@ -6,7 +6,7 @@ function Transactions() {
     const [transactions, setTransactions] = useState([]);
 
     useEffect(() => {
-        fetch("${API_URL}/api/transactions")
+        fetch(`${API_URL}/api/transactions`)
             .then((response) => response.json())
             .then((data) => setTransactions(data))
             .catch((error) => console.error(error));

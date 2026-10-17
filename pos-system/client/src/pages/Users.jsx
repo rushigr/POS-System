@@ -34,7 +34,7 @@ function Users() {
     const loadUsers = async () => {
         try {
             const response = await fetch(
-                "${API_URL}/api/users",
+                `${API_URL}/api/users`,
                 {
                     headers: getHeaders()
                 }
@@ -99,7 +99,7 @@ function Users() {
             const response = await fetch(
                 editingId
                     ? `${API_URL}/api/users/${editingId}`
-                    : "${API_URL}/api/users",
+                    : `${API_URL}/api/users`,
                 {
                     method: editingId ? "PUT" : "POST",
                     headers: getHeaders(),

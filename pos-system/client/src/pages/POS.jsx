@@ -19,7 +19,7 @@ function POS() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     useEffect(() => {
-        fetch("${API_URL}/api/products")
+        fetch(`${API_URL}/api/products`)
             .then((response) => response.json())
             .then((data) => setProducts(data))
             .catch((error) => console.error(error));
