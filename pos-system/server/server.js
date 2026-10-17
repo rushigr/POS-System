@@ -15,7 +15,9 @@ connectDB();
 const app = express();
 
 app.use(cors({
-    origin: "https://pos-system-9yeh.onrender.com"
+    origin: "https://pos-system-ten-lac.vercel.app",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
 
