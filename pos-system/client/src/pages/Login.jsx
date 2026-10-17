@@ -15,10 +15,11 @@ function Login() {
 
         setError("");
         setLoading(true);
+        // hawbdfjhsbfhabdfhbadhfkb
 
         try {
             const response = await fetch(
-                "${import.meta.env.VITE_API_URL}/api/auth/login",
+                "${API_URL}/api/auth/login",
                 {
                     method: "POST",
                     headers: {
