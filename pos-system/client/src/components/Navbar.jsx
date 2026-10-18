@@ -26,7 +26,7 @@ function Navbar() {
 
             <div className="navbar-brand">
                 <Link to="/dashboard">
-                    POS System
+                    Houdo Ramen
                 </Link>
             </div>
 
@@ -94,6 +94,13 @@ function Navbar() {
                     >
                         Users
                     </Link>
+                )}
+
+                {/* Current User */}
+                {user && (
+                    <span className="navbar-username">
+                        {user.username}
+                    </span>
                 )}
 
                 {/* Logout */}
