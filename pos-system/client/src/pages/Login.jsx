@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Login.css";
 import API_URL from "../api";
@@ -10,6 +10,13 @@ function Login() {
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
+
+    // Already signed in on this device: skip the login form.
+    useEffect(() => {
+        if (localStorage.getItem("user")) {
+            navigate("/dashboard", { replace: true });
+        }
+    }, [navigate]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
