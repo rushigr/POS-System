@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const adminOnly = require("../middleware/adminMiddleware");
 const { logAudit, diffFields } = require("../utils/audit");
+const { validatePassword } = require("../utils/passwordStrength");
 
 const router = express.Router();
 
@@ -31,6 +32,12 @@ router.post("/", adminOnly, async (req, res) => {
             return res.status(400).json({
                 message: "Invalid user role"
             });
+        }
+
+        const passwordProblem = validatePassword(password, username.trim());
+
+        if (passwordProblem) {
+            return res.status(400).json({ message: passwordProblem });
         }
 
         const existingUser = await User.findOne({
@@ -96,6 +103,14 @@ router.put("/:id", adminOnly, async (req, res) => {
             return res.status(400).json({
                 message: "Invalid user role"
             });
+        }
+
+        if (password?.trim()) {
+            const passwordProblem = validatePassword(password, username.trim());
+
+            if (passwordProblem) {
+                return res.status(400).json({ message: passwordProblem });
+            }
         }
 
         const user = await User.findById(req.params.id);
