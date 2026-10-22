@@ -1,5 +1,6 @@
 const express = require("express");
 const User = require("../models/User");
+const UserSession = require("../models/UserSession");
 
 const router = express.Router();
 
@@ -27,12 +28,24 @@ router.post("/login", async (req, res) => {
             });
         }
 
+        const now = new Date();
+        const session = await UserSession.create({
+            userId: user._id,
+            username: user.username,
+            role: user.role,
+            loginAt: now,
+            lastSeenAt: now,
+            offlineAt: null,
+            endedBy: null
+        });
+
         res.json({
             message: "Login successful",
             user: {
                 id: user._id,
                 username: user.username,
-                role: user.role
+                role: user.role,
+                sessionId: String(session._id)
             }
         });
 

@@ -4,10 +4,41 @@ import "./Users.css";
 import API_URL from "../api";
 import { evaluatePassword } from "../utils/passwordStrength";
 
+const formatSessionDateTime = (value) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString();
+};
+
+const formatSessionDuration = (startValue, endValue) => {
+    const start = new Date(startValue).getTime();
+    const end = new Date(endValue).getTime();
+
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+        return "—";
+    }
+
+    const totalSeconds = Math.floor((end - start) / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+};
+
 function Users() {
     const navigate = useNavigate();
 
     const [users, setUsers] = useState([]);
+    const [sessions, setSessions] = useState([]);
+    const [sessionsLoading, setSessionsLoading] = useState(true);
+    const [sessionsError, setSessionsError] = useState("");
+    const [sessionClock, setSessionClock] = useState(Date.now());
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [role, setRole] = useState("cashier");
@@ -69,6 +100,28 @@ function Users() {
         }
     };
 
+    const loadSessions = async () => {
+        setSessionsLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/api/sessions`, {
+                headers: getHeaders()
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || "Failed to load session activity");
+            }
+
+            setSessions(Array.isArray(data.sessions) ? data.sessions : []);
+            setSessionsError("");
+        } catch (error) {
+            setSessionsError(error.message || "Unable to load session activity.");
+        } finally {
+            setSessionsLoading(false);
+        }
+    };
+
     useEffect(() => {
         const user = getCurrentUser();
 
@@ -84,7 +137,21 @@ function Users() {
         }
 
         loadUsers();
+        loadSessions();
+
+        // Refresh active/offline status every 15 seconds while this page is open.
+        const sessionRefresh = setInterval(() => {
+            loadSessions();
+        }, 15000);
+
+        return () => clearInterval(sessionRefresh);
     }, [navigate]);
+
+    // Update elapsed session durations while the admin watches this page.
+    useEffect(() => {
+        const timer = setInterval(() => setSessionClock(Date.now()), 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     // Success banner disappears on its own.
     useEffect(() => {
@@ -475,6 +542,121 @@ function Users() {
                     </table>
                 </div>
             )}
+
+            {/* ---------- STAFF SESSION ACTIVITY ---------- */}
+            <section className="session-activity-section">
+                <div className="session-activity-header">
+                    <div>
+                        <h2>Staff Activity</h2>
+                        <p>
+                            Recent login sessions, active duration, and offline time.
+                            Status refreshes every 15 seconds.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        className="session-refresh-button"
+                        onClick={loadSessions}
+                        disabled={sessionsLoading}
+                    >
+                        {sessionsLoading ? "Refreshing..." : "Refresh"}
+                    </button>
+                </div>
+
+                <div className="session-stat-cards">
+                    <div className="session-stat-card">
+                        <span className="session-stat-label">Online now</span>
+                        <strong>
+                            {sessions.filter((session) => session.status === "active").length}
+                        </strong>
+                    </div>
+                    <div className="session-stat-card">
+                        <span className="session-stat-label">Recent sessions</span>
+                        <strong>{sessions.length}</strong>
+                    </div>
+                    <div className="session-stat-card">
+                        <span className="session-stat-label">Offline sessions</span>
+                        <strong>
+                            {sessions.filter((session) => session.status === "offline").length}
+                        </strong>
+                    </div>
+                </div>
+
+                {sessionsError && (
+                    <p className="session-activity-error">{sessionsError}</p>
+                )}
+
+                {sessionsLoading && sessions.length === 0 ? (
+                    <p className="session-empty-state">Loading staff activity...</p>
+                ) : sessions.length === 0 ? (
+                    <p className="session-empty-state">
+                        No recorded login sessions yet. New sessions will appear after users sign in.
+                    </p>
+                ) : (
+                    <div className="session-table-container">
+                        <table className="session-table">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Login time</th>
+                                    <th>Active duration</th>
+                                    <th>Last activity</th>
+                                    <th>Offline time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sessions.map((session) => {
+                                    const durationEnd = session.offlineAt || new Date(sessionClock);
+                                    const offlineLabel = session.offlineAt
+                                        ? `${session.endedBy === "inactivity" ? "≈ " : ""}${formatSessionDateTime(session.offlineAt)}`
+                                        : "—";
+
+                                    return (
+                                        <tr key={session._id}>
+                                            <td className="session-username">{session.username}</td>
+                                            <td>
+                                                <span className={`role-badge ${session.role}`}>
+                                                    {session.role}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span
+                                                    className={`session-status-badge ${session.status}`}
+                                                >
+                                                    <span className="session-status-dot" />
+                                                    {session.status === "active" ? "Online" : "Offline"}
+                                                </span>
+                                            </td>
+                                            <td>{formatSessionDateTime(session.loginAt)}</td>
+                                            <td className="session-duration">
+                                                {formatSessionDuration(session.loginAt, durationEnd)}
+                                            </td>
+                                            <td>{formatSessionDateTime(session.lastSeenAt)}</td>
+                                            <td>
+                                                {offlineLabel}
+                                                {session.endedBy === "inactivity" && session.offlineAt && (
+                                                    <small className="session-time-note">Estimated from last heartbeat</small>
+                                                )}
+                                                {session.endedBy === "logout" && session.offlineAt && (
+                                                    <small className="session-time-note">Logged out</small>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                <p className="session-activity-footnote">
+                    Browser closures and lost connections are detected after 90 seconds without a heartbeat,
+                    so those offline times are estimates. Clicking Logout records the server time of logout.
+                </p>
+            </section>
 
             {/* ---------- CONFIRMATION MODAL ---------- */}
             {pending && (
