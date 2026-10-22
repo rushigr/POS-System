@@ -191,6 +191,47 @@
 }
 .prd-preview .prd-fallback { font-size: 32px; }
 
+.prd-image-field { display: flex; flex-direction: column; gap: 6px; }
+.prd-image-label { font-size: 14px; font-weight: 600; color: #374151; }
+.prd-image-row { display: flex; align-items: center; gap: 14px; }
+.prd-image-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+.prd-image-actions small {
+    color: #6b7280;
+    font-size: 12px;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.prd-file-btn {
+    display: inline-block;
+    padding: 8px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #1f2937;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.prd-file-btn:hover { background: #f1f5f9; }
+.prd-file-btn input { display: none; }
+.prd-link-btn {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #b91c1c;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
 .prd-form-error {
     margin: 0;
     padding: 10px 12px;

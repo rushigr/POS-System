@@ -6,6 +6,9 @@ import API_URL from "../api";
 const CATEGORIES = ["Ramen", "Rice Meal", "Snacks", "Add-Ons"];
 const EMPTY_FORM = { name: "", category: "Ramen", price: "", image: "" };
 
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // keep in sync with the server limit
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 const peso = (n) =>
     `₱${Number(n || 0).toLocaleString("en-PH", {
         minimumFractionDigits: 2,
@@ -52,6 +55,8 @@ function Products() {
     const [editing, setEditing] = useState(null); // product being edited, or null
     const [form, setForm] = useState(EMPTY_FORM);
     const [formError, setFormError] = useState("");
+    const [imageFile, setImageFile] = useState(null); // newly chosen upload
+    const [removeImage, setRemoveImage] = useState(false);
 
     // confirmation (modal on top of everything)
     const [confirm, setConfirm] = useState(null);
@@ -68,10 +73,9 @@ function Products() {
             user = null;
         }
 
-        return {
-            "Content-Type": "application/json",
-            "x-username": user?.username || ""
-        };
+        // No Content-Type here: for FormData the browser must set it itself
+        // (it includes the multipart boundary).
+        return { "x-username": user?.username || "" };
     };
 
     const loadProducts = async () => {
@@ -167,9 +171,50 @@ function Products() {
     const updateForm = (field, value) =>
         setForm((prev) => ({ ...prev, [field]: value }));
 
+    // Local preview of a freshly chosen file; revoked when it changes.
+    const filePreview = useMemo(
+        () => (imageFile ? URL.createObjectURL(imageFile) : ""),
+        [imageFile]
+    );
+
+    useEffect(() => {
+        return () => {
+            if (filePreview) URL.revokeObjectURL(filePreview);
+        };
+    }, [filePreview]);
+
+    const previewSrc =
+        filePreview || (removeImage ? "" : form.image.trim());
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = ""; // allow re-picking the same file later
+
+        if (!file) return;
+
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+            return setFormError("Image must be a JPG, PNG or WebP file.");
+        }
+        if (file.size > MAX_IMAGE_BYTES) {
+            return setFormError("Image must be 2 MB or smaller.");
+        }
+
+        setFormError("");
+        setImageFile(file);
+        setRemoveImage(false);
+    };
+
+    const clearImage = () => {
+        setImageFile(null);
+        setRemoveImage(true);
+        updateForm("image", "");
+    };
+
     const openAdd = () => {
         setEditing(null);
         setForm(EMPTY_FORM);
+        setImageFile(null);
+        setRemoveImage(false);
         setFormError("");
         setFormOpen(true);
     };
@@ -182,6 +227,8 @@ function Products() {
             price: String(product.price),
             image: product.image || ""
         });
+        setImageFile(null);
+        setRemoveImage(false);
         setFormError("");
         setFormOpen(true);
     };
@@ -199,7 +246,9 @@ function Products() {
             name: form.name.trim(),
             category: form.category,
             price: Number(form.price),
-            image: form.image.trim()
+            image: form.image.trim(),
+            imageFile,
+            removeImage
         };
 
         if (!payload.name) return setFormError("Product name is required.");
@@ -232,11 +281,19 @@ function Products() {
                 to: peso(payload.price)
             });
         }
-        if ((editing.image || "") !== payload.image) {
+        const imageChanged =
+            Boolean(payload.imageFile) ||
+            (payload.removeImage && Boolean(editing.image)) ||
+            (editing.image || "") !== payload.image;
+
+        if (imageChanged) {
             changes.push({
                 label: "Image",
                 from: editing.image ? "Current image" : "None",
-                to: payload.image ? "New image" : "None"
+                to:
+                    payload.imageFile || payload.image
+                        ? "New image"
+                        : "None"
             });
         }
 
@@ -264,10 +321,20 @@ function Products() {
         setSubmitting(true);
 
         try {
+            const body = new FormData();
+            body.append("name", payload.name);
+            body.append("category", payload.category);
+            body.append("price", String(payload.price));
+            body.append("image", payload.image);
+            if (payload.removeImage) body.append("removeImage", "true");
+            if (payload.imageFile) {
+                body.append("imageFile", payload.imageFile);
+            }
+
             const response = await fetch(url, {
                 method,
                 headers: authHeaders(),
-                body: JSON.stringify(payload)
+                body
             });
 
             if (!response.ok) {
@@ -501,27 +568,54 @@ function Products() {
                                 </label>
                             </div>
 
-                            <label>
-                                Image URL (optional)
-                                <input
-                                    type="url"
-                                    value={form.image}
-                                    onChange={(e) =>
-                                        updateForm("image", e.target.value)
-                                    }
-                                    placeholder="https://..."
-                                />
-                            </label>
+                            <div className="prd-image-field">
+                                <span className="prd-image-label">
+                                    Image (optional)
+                                </span>
 
-                            <div className="prd-preview">
-                                {/* key resets the failed state when the URL changes */}
-                                <ProductImage
-                                    key={form.image}
-                                    product={{
-                                        name: form.name || "?",
-                                        image: form.image.trim()
-                                    }}
-                                />
+                                <div className="prd-image-row">
+                                    <div className="prd-preview">
+                                        {/* key resets the failed state when the source changes */}
+                                        <ProductImage
+                                            key={previewSrc}
+                                            product={{
+                                                name: form.name || "?",
+                                                image: previewSrc
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div className="prd-image-actions">
+                                        <label className="prd-file-btn">
+                                            {previewSrc
+                                                ? "Change image"
+                                                : "Upload image"}
+                                            <input
+                                                type="file"
+                                                accept="image/jpeg,image/png,image/webp"
+                                                onChange={handleFileChange}
+                                                disabled={submitting}
+                                            />
+                                        </label>
+
+                                        {previewSrc && (
+                                            <button
+                                                type="button"
+                                                className="prd-link-btn"
+                                                onClick={clearImage}
+                                                disabled={submitting}
+                                            >
+                                                Remove image
+                                            </button>
+                                        )}
+
+                                        <small>
+                                            {imageFile
+                                                ? imageFile.name
+                                                : "JPG, PNG or WebP, up to 2 MB"}
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
 
                             {formError && (
