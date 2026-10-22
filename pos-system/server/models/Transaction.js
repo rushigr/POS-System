@@ -64,7 +64,18 @@ const transactionSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+
+    // Voiding keeps the record (for audit/reporting) but removes it from sales totals.
+    // Older documents have no status; treat a missing status as "completed".
+    status: {
+        type: String,
+        enum: ["completed", "voided"],
+        default: "completed"
+    },
+    voidedAt: { type: Date },
+    voidedBy: { type: String },
+    voidReason: { type: String, maxlength: 200 }
 }, {
     collection: "Transaction"
 });

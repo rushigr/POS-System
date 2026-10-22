@@ -9,12 +9,15 @@ const ACTION_LABELS = {
     PRODUCT_DELETE: "Product deleted",
     USER_CREATE: "User created",
     USER_UPDATE: "User updated",
-    USER_DELETE: "User deleted"
+    USER_DELETE: "User deleted",
+    TRANSACTION_VOID: "Transaction voided"
 };
 
 const actionClass = (action) => {
     if (action.endsWith("_CREATE")) return "audit-badge create";
-    if (action.endsWith("_DELETE")) return "audit-badge delete";
+    if (action.endsWith("_DELETE") || action.endsWith("_VOID")) {
+        return "audit-badge delete";
+    }
     return "audit-badge update";
 };
 
@@ -98,8 +101,8 @@ function AuditLog() {
         <div className="audit-page">
             <h1>Audit Log</h1>
             <p className="audit-subtitle">
-                A record of every change admins make to products and
-                user accounts. {total} entr{total === 1 ? "y" : "ies"}.
+                A record of every change admins make to products,
+                user accounts and voided transactions. {total} entr{total === 1 ? "y" : "ies"}.
             </p>
 
             <div className="audit-filters">
@@ -113,6 +116,7 @@ function AuditLog() {
                     <option value="">All activity</option>
                     <option value="Product">Products</option>
                     <option value="User">Users</option>
+                    <option value="Transaction">Transactions</option>
                 </select>
 
                 <form onSubmit={applyActorFilter} className="audit-actor-form">

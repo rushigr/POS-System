@@ -95,13 +95,19 @@ function rangeLabel(mode, anchor) {
 
 /* ---------- one expandable transaction ---------- */
 
-function TransactionRow({ transaction, open, onToggle }) {
+function TransactionRow({ transaction, open, onToggle, canVoid, onVoid }) {
+    const voided = transaction.status === "voided";
     const items = transaction.items || [];
     const itemCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
     const created = new Date(transaction.createdAt);
 
     return (
-        <div className={open ? "txn-row open" : "txn-row"}>
+        <div
+            className={
+                (open ? "txn-row open" : "txn-row") +
+                (voided ? " voided" : "")
+            }
+        >
             <button
                 type="button"
                 className="txn-summary-bar"
@@ -111,7 +117,10 @@ function TransactionRow({ transaction, open, onToggle }) {
                 <span className="txn-chevron" aria-hidden="true">▸</span>
 
                 <span className="txn-main">
-                    <strong>{transaction.transactionNumber}</strong>
+                    <strong>
+                        {transaction.transactionNumber}
+                        {voided && <span className="txn-badge">VOIDED</span>}
+                    </strong>
                     <span className="txn-meta">
                         {created.toLocaleTimeString([], {
                             hour: "2-digit",
@@ -161,6 +170,33 @@ function TransactionRow({ transaction, open, onToggle }) {
                             <dt>Total</dt><dd>{peso(transaction.total)}</dd>
                         </div>
                     </dl>
+
+                    {voided && (
+                        <div className="txn-void-info">
+                            <strong>Voided</strong>
+                            {transaction.voidedBy && ` by ${transaction.voidedBy}`}
+                            {transaction.voidedAt &&
+                                ` on ${new Date(transaction.voidedAt).toLocaleString()}`}
+                            {transaction.voidReason && (
+                                <>
+                                    <br />
+                                    Reason: {transaction.voidReason}
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {canVoid && !voided && (
+                        <div className="txn-actions">
+                            <button
+                                type="button"
+                                className="txn-void-btn"
+                                onClick={() => onVoid(transaction)}
+                            >
+                                Void transaction
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -181,6 +217,21 @@ function Transactions() {
 
     const [openIds, setOpenIds] = useState(() => new Set());
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+    // void flow (admins only)
+    const [voidTarget, setVoidTarget] = useState(null);
+    const [voidReason, setVoidReason] = useState("");
+    const [voidError, setVoidError] = useState("");
+    const [voiding, setVoiding] = useState(false);
+
+    const currentUser = (() => {
+        try {
+            return JSON.parse(localStorage.getItem("user"));
+        } catch {
+            return null;
+        }
+    })();
+    const isAdmin = currentUser?.role === "admin";
 
     useEffect(() => {
         fetch(`${API_URL}/api/transactions`)
@@ -228,12 +279,15 @@ function Transactions() {
         return list;
     }, [transactions, mode, anchor, sort, search]);
 
+    // Voided transactions stay in the list but never count toward sales.
     const stats = useMemo(() => {
-        const sales = filtered.reduce((sum, t) => sum + (t.total || 0), 0);
+        const valid = filtered.filter((t) => t.status !== "voided");
+        const sales = valid.reduce((sum, t) => sum + (t.total || 0), 0);
         return {
-            count: filtered.length,
+            count: valid.length,
+            voided: filtered.length - valid.length,
             sales,
-            average: filtered.length ? sales / filtered.length : 0
+            average: valid.length ? sales / valid.length : 0
         };
     }, [filtered]);
 
@@ -264,7 +318,7 @@ function Transactions() {
             }
             const group = map.get(key);
             group.items.push(t);
-            group.total += t.total || 0;
+            if (t.status !== "voided") group.total += t.total || 0;
         });
         return [...map.values()];
     }, [visible, sort]);
@@ -278,6 +332,55 @@ function Transactions() {
             else next.add(id);
             return next;
         });
+    };
+
+    const openVoid = (transaction) => {
+        setVoidTarget(transaction);
+        setVoidReason("");
+        setVoidError("");
+    };
+
+    const closeVoid = () => {
+        if (!voiding) setVoidTarget(null);
+    };
+
+    const confirmVoid = async () => {
+        const reason = voidReason.trim();
+
+        if (!reason) return setVoidError("Please enter a reason.");
+
+        setVoiding(true);
+        setVoidError("");
+
+        try {
+            const response = await fetch(
+                `${API_URL}/api/transactions/${voidTarget._id}/void`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-username": currentUser?.username || ""
+                    },
+                    body: JSON.stringify({ reason })
+                }
+            );
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || "Failed to void transaction");
+            }
+
+            setTransactions((prev) =>
+                prev.map((t) => (t._id === data._id ? data : t))
+            );
+            setVoidTarget(null);
+        } catch (err) {
+            console.error(err);
+            setVoidError(err.message || "Failed to void transaction");
+        } finally {
+            setVoiding(false);
+        }
     };
 
     const shift = (direction) => {
@@ -387,6 +490,12 @@ function Transactions() {
                     <span>Average sale</span>
                     <strong>{peso(stats.average)}</strong>
                 </div>
+                {stats.voided > 0 && (
+                    <div>
+                        <span>Voided</span>
+                        <strong>{stats.voided}</strong>
+                    </div>
+                )}
             </div>
 
             {filtered.length > 0 && (
@@ -421,8 +530,8 @@ function Transactions() {
                                 <header className="txn-group-header">
                                     <h3>{group.label}</h3>
                                     <span>
-                                        {group.items.length} sale
-                                        {group.items.length === 1 ? "" : "s"} ·{" "}
+                                        {group.items.filter((t) => t.status !== "voided").length} sale
+                                        {group.items.filter((t) => t.status !== "voided").length === 1 ? "" : "s"} ·{" "}
                                         <strong>{peso(group.total)}</strong>
                                     </span>
                                 </header>
@@ -434,6 +543,8 @@ function Transactions() {
                                     transaction={t}
                                     open={openIds.has(t._id)}
                                     onToggle={() => toggle(t._id)}
+                                    canVoid={isAdmin}
+                                    onVoid={openVoid}
                                 />
                             ))}
                         </section>
@@ -452,6 +563,68 @@ function Transactions() {
                         </div>
                     )}
                 </>
+            )}
+
+            {/* ----- void confirmation ----- */}
+            {voidTarget && (
+                <div
+                    className="txn-overlay"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) closeVoid();
+                    }}
+                >
+                    <div
+                        className="txn-modal"
+                        role="alertdialog"
+                        aria-modal="true"
+                        aria-labelledby="txn-void-title"
+                    >
+                        <h2 id="txn-void-title">
+                            Void {voidTarget.transactionNumber}?
+                        </h2>
+
+                        <p>
+                            This removes the {peso(voidTarget.total)} sale from
+                            all totals and reports. The record is kept and
+                            this cannot be undone.
+                        </p>
+
+                        <label>
+                            Reason (required)
+                            <textarea
+                                value={voidReason}
+                                onChange={(e) => setVoidReason(e.target.value)}
+                                maxLength={200}
+                                rows={3}
+                                placeholder="e.g. Wrong item rung up"
+                                autoFocus
+                            />
+                        </label>
+
+                        {voidError && (
+                            <p className="txn-modal-error">{voidError}</p>
+                        )}
+
+                        <div className="txn-modal-actions">
+                            <button
+                                type="button"
+                                className="txn-modal-cancel"
+                                onClick={closeVoid}
+                                disabled={voiding}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="txn-void-btn solid"
+                                onClick={confirmVoid}
+                                disabled={voiding}
+                            >
+                                {voiding ? "Voiding..." : "Void transaction"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

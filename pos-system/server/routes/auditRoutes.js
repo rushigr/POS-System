@@ -18,7 +18,7 @@ router.get("/", adminOnly, async (req, res) => {
         const filter = {};
 
         if (typeof req.query.entityType === "string" &&
-            ["Product", "User"].includes(req.query.entityType)) {
+            ["Product", "User", "Transaction"].includes(req.query.entityType)) {
             filter.entityType = req.query.entityType;
         }
 

@@ -104,6 +104,7 @@ function Dashboard() {
     const parsed = useMemo(
         () =>
             transactions
+                .filter((t) => t.status !== "voided") // voided sales don't count
                 .map((t) => ({ ...t, date: new Date(t.createdAt) }))
                 .filter((t) => !Number.isNaN(t.date.getTime())),
         [transactions]
