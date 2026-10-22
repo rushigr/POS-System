@@ -3,45 +3,57 @@ import {
     ResponsiveContainer,
     BarChart,
     Bar,
-    LineChart,
-    Line,
+    Cell,
     XAxis,
     YAxis,
     CartesianGrid,
-    Tooltip,
-    Legend
+    Tooltip
 } from "recharts";
 import "./Dashboard.css";
 
 import API_URL from "../api";
+import {
+    addMonths,
+    analyzePeriod,
+    bestSellerRows,
+    currency,
+    fromDateValue,
+    fromMonthValue,
+    monthSegments,
+    shiftAnchor,
+    toDateValue,
+    toMonthValue,
+    weekSegments
+} from "../utils/salesReport";
 
-function getLocalMonth() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
+const MODES = [
+    ["year", "Year"],
+    ["month", "Month"],
+    ["week", "Week"],
+    ["day", "Day"]
+];
 
-    return `${year}-${month}`;
-}
+const compact = new Intl.NumberFormat("en-PH", {
+    notation: "compact",
+    maximumFractionDigits: 1
+});
 
-function getWeekNumber(date) {
-    return Math.floor((date.getDate() - 1) / 7);
-}
-
-// const weekLabels = [
-//     "Week 1 (1–7)",
-//     "Week 2 (8–14)",
-//     "Week 3 (15–21)",
-//     "Week 4 (22–28)",
-//     "Week 5 (29–end)"
-// ];
+const CHART_TITLES = {
+    year: "Sales by Month",
+    month: "Sales by Day",
+    week: "Sales by Day of the Week",
+    day: "Sales by Hour"
+};
 
 function Dashboard() {
     const [transactions, setTransactions] = useState([]);
     const [products, setProducts] = useState([]);
-    const [selectedMonth, setSelectedMonth] = useState(getLocalMonth());
-    const [selectedWeek, setSelectedWeek] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    const [mode, setMode] = useState("month"); // year | month | week | day
+    const [anchor, setAnchor] = useState(() => new Date());
+    const [bestBy, setBestBy] = useState("week"); // week | month
 
     useEffect(() => {
         let cancelled = false;
@@ -61,11 +73,10 @@ function Dashboard() {
                     throw new Error("Failed to load dashboard data.");
                 }
 
-                const [transactionData, productData] =
-                    await Promise.all([
-                        transactionResponse.json(),
-                        productResponse.json()
-                    ]);
+                const [transactionData, productData] = await Promise.all([
+                    transactionResponse.json(),
+                    productResponse.json()
+                ]);
 
                 if (!cancelled) {
                     setTransactions(transactionData);
@@ -78,9 +89,7 @@ function Dashboard() {
                     );
                 }
             } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
+                if (!cancelled) setLoading(false);
             }
         }
 
@@ -91,286 +100,431 @@ function Dashboard() {
         };
     }, []);
 
-    const monthTransactions = useMemo(() => {
-        const [year, month] = selectedMonth.split("-").map(Number);
-
-        return transactions.filter((transaction) => {
-            const date = new Date(transaction.createdAt);
-
-            return (
-                !Number.isNaN(date.getTime()) &&
-                date.getFullYear() === year &&
-                date.getMonth() === month - 1
-            );
-        });
-    }, [transactions, selectedMonth]);
-
-    const weeklySales = useMemo(() => {
-        const [year, month] = selectedMonth.split("-").map(Number);
-        const daysInMonth = new Date(year, month, 0).getDate();
-        const numberOfWeeks = Math.ceil(daysInMonth / 7);
-
-        return Array.from({ length: numberOfWeeks }, (_, index) => {
-            const startDay = index * 7 + 1;
-            const endDay = Math.min(startDay + 6, daysInMonth);
-
-            const sales = monthTransactions
-                .filter((transaction) => {
-                    const day = new Date(
-                        transaction.createdAt
-                    ).getDate();
-
-                    return day >= startDay && day <= endDay;
-                })
-                .reduce(
-                    (sum, transaction) =>
-                        sum + Number(transaction.total || 0),
-                    0
-                );
-
-            return {
-                week: `Week ${index + 1}`,
-                period: `${startDay}–${endDay}`,
-                sales: Number(sales.toFixed(2))
-            };
-        });
-    }, [monthTransactions, selectedMonth]);
-
-    const weeklyProducts = useMemo(() => {
-        const totals = {};
-
-        monthTransactions.forEach((transaction) => {
-            const date = new Date(transaction.createdAt);
-
-            if (getWeekNumber(date) !== selectedWeek) {
-                return;
-            }
-
-            (transaction.items || []).forEach((item) => {
-                const name = item.name || "Unknown product";
-                const quantity = Number(item.quantity) || 1;
-
-                totals[name] = (totals[name] || 0) + quantity;
-            });
-        });
-
-        return Object.entries(totals)
-            .map(([name, quantity]) => ({ name, quantity }))
-            .sort((a, b) => b.quantity - a.quantity);
-    }, [monthTransactions, selectedWeek]);
-
-    const totalSales = monthTransactions.reduce(
-        (sum, transaction) =>
-            sum + Number(transaction.total || 0),
-        0
+    // Parse each date once; drop records with a bad date.
+    const parsed = useMemo(
+        () =>
+            transactions
+                .map((t) => ({ ...t, date: new Date(t.createdAt) }))
+                .filter((t) => !Number.isNaN(t.date.getTime())),
+        [transactions]
     );
 
-    const transactionCount = monthTransactions.length;
+    const report = useMemo(
+        () => analyzePeriod(mode, anchor, parsed),
+        [mode, anchor, parsed]
+    );
 
-    const monthName = new Date(
-        `${selectedMonth}-15T12:00:00`
-    ).toLocaleDateString("en-PH", {
-        month: "long",
-        year: "numeric"
-    });
+    const topProducts = report.ranked.slice(0, 10);
 
-    const currency = (value) =>
-        `₱${Number(value).toLocaleString("en-PH", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        })}`;
+    const yearOptions = useMemo(() => {
+        const thisYear = new Date().getFullYear();
+        const earliest = parsed.reduce(
+            (min, t) => Math.min(min, t.date.getFullYear()),
+            thisYear
+        );
+        const latest = Math.max(thisYear, anchor.getFullYear());
+        const years = [];
+        for (let y = latest; y >= Math.min(earliest, anchor.getFullYear()); y--) {
+            years.push(y);
+        }
+        return years;
+    }, [parsed, anchor]);
+
+    const bestSellers = useMemo(() => {
+        const year = anchor.getFullYear();
+        const month = anchor.getMonth();
+
+        const segments =
+            bestBy === "week" ? weekSegments(year, month) : monthSegments(year);
+
+        return {
+            subtitle:
+                bestBy === "week"
+                    ? `Mon–Sun weeks of ${anchor.toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric"
+                      })}, trimmed to the month so rows add up to the month total.`
+                    : `Every month of ${year}.`,
+            rows: bestSellerRows(segments, parsed)
+        };
+    }, [bestBy, anchor, parsed]);
+
+    const delta =
+        report.prevTotals.sales > 0
+            ? ((report.totals.sales - report.prevTotals.sales) /
+                  report.prevTotals.sales) *
+              100
+            : null;
+
+    const unit = mode;
 
     return (
-        <div className="dashboard-page">
-            <div className="dashboard-header">
+        <div className="dsh-page">
+            <header className="dsh-header">
                 <div>
                     <h1>Sales Dashboard</h1>
                     <p>Sales performance and product reports</p>
                 </div>
+            </header>
 
-                <div className="month-filter">
-                    <label htmlFor="report-month">
-                        Select Month
-                    </label>
+            {/* ---------- period controls ---------- */}
+            <div className="dsh-controls">
+                <div className="dsh-tabs" role="tablist">
+                    {MODES.map(([value, label]) => (
+                        <button
+                            key={value}
+                            role="tab"
+                            aria-selected={mode === value}
+                            className={
+                                mode === value ? "dsh-tab active" : "dsh-tab"
+                            }
+                            onClick={() => setMode(value)}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
 
-                    <input
-                        id="report-month"
-                        type="month"
-                        value={selectedMonth}
-                        onChange={(e) => {
-                            setSelectedMonth(e.target.value);
-                            setSelectedWeek(0);
-                        }}
-                    />
+                <div className="dsh-nav">
+                    <button
+                        onClick={() => setAnchor((a) => shiftAnchor(mode, a, -1))}
+                        aria-label={`Previous ${unit}`}
+                    >
+                        ‹
+                    </button>
+
+                    <div className="dsh-nav-label">
+                        <strong>{report.name}</strong>
+
+                        {mode === "year" && (
+                            <select
+                                value={anchor.getFullYear()}
+                                onChange={(e) =>
+                                    setAnchor((a) =>
+                                        addMonths(
+                                            a,
+                                            (Number(e.target.value) -
+                                                a.getFullYear()) *
+                                                12
+                                        )
+                                    )
+                                }
+                                aria-label="Select year"
+                            >
+                                {yearOptions.map((y) => (
+                                    <option key={y} value={y}>
+                                        {y}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+
+                        {mode === "month" && (
+                            <input
+                                type="month"
+                                value={toMonthValue(anchor)}
+                                onChange={(e) =>
+                                    e.target.value &&
+                                    setAnchor(fromMonthValue(e.target.value))
+                                }
+                                aria-label="Select month"
+                            />
+                        )}
+
+                        {(mode === "week" || mode === "day") && (
+                            <input
+                                type="date"
+                                value={toDateValue(anchor)}
+                                onChange={(e) =>
+                                    e.target.value &&
+                                    setAnchor(fromDateValue(e.target.value))
+                                }
+                                aria-label="Select date"
+                            />
+                        )}
+                    </div>
+
+                    <button
+                        onClick={() => setAnchor((a) => shiftAnchor(mode, a, 1))}
+                        aria-label={`Next ${unit}`}
+                    >
+                        ›
+                    </button>
+
+                    <button
+                        className="dsh-today"
+                        onClick={() => setAnchor(new Date())}
+                    >
+                        Today
+                    </button>
                 </div>
             </div>
 
-            {error && (
-                <p className="dashboard-error">{error}</p>
-            )}
+            {error && <p className="dsh-error">{error}</p>}
 
             {loading ? (
                 <p>Loading sales reports...</p>
             ) : (
                 <>
-                    <div className="dashboard-cards">
-                        <div className="dashboard-card">
-                            <h2>{currency(totalSales)}</h2>
-                            <p>Total Sales — {monthName}</p>
+                    {/* ---------- cards ---------- */}
+                    <div className="dsh-cards">
+                        <div className="dsh-card">
+                            <h2>{currency(report.totals.sales)}</h2>
+                            <p>Total Sales</p>
+                            {delta !== null && (
+                                <span
+                                    className={
+                                        delta >= 0
+                                            ? "dsh-delta up"
+                                            : "dsh-delta down"
+                                    }
+                                >
+                                    {delta >= 0 ? "▲" : "▼"}{" "}
+                                    {Math.abs(delta).toFixed(1)}% vs previous{" "}
+                                    {unit}
+                                </span>
+                            )}
                         </div>
 
-                        <div className="dashboard-card">
-                            <h2>{transactionCount}</h2>
-                            <p>Transactions — {monthName}</p>
+                        <div className="dsh-card">
+                            <h2>{report.totals.count}</h2>
+                            <p>Transactions</p>
                         </div>
 
-                        <div className="dashboard-card">
+                        <div className="dsh-card">
+                            <h2>{report.totals.items}</h2>
+                            <p>Items Sold</p>
+                        </div>
+
+                        <div className="dsh-card">
+                            <h2>{currency(report.totals.average)}</h2>
+                            <p>Average Sale</p>
+                        </div>
+
+                        <div className="dsh-card">
                             <h2>{products.length}</h2>
                             <p>Products in Catalog</p>
                         </div>
                     </div>
 
-                    <section className="report-section">
-                        <h2>Weekly Sales Report</h2>
-                        <p className="report-description">
-                            Total completed sales for each week of{" "}
-                            {monthName}.
+                    {/* ---------- summary statements ---------- */}
+                    <section className="dsh-section dsh-summary-section">
+                        <h2>Report Summary</h2>
+
+                        <ul className="dsh-summary">
+                            {report.summary.map((statement, i) => (
+                                <li key={i}>
+                                    {statement.map((part, j) =>
+                                        typeof part === "string" ? (
+                                            <span key={j}>{part}</span>
+                                        ) : (
+                                            <strong key={j}>{part.b}</strong>
+                                        )
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+
+                    {/* ---------- sales chart ---------- */}
+                    <section className="dsh-section">
+                        <h2>{CHART_TITLES[mode]}</h2>
+                        <p className="dsh-description">
+                            {report.name}
+                            {report.bestBucket &&
+                                " · the highest bar is highlighted in green."}
                         </p>
 
-                        <div className="chart-container">
-                            <ResponsiveContainer
-                                width="100%"
-                                height="100%"
-                            >
-                                <LineChart data={weeklySales}>
+                        <div className="dsh-chart">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                    data={report.buckets}
+                                    margin={{ top: 10, right: 16, left: 0, bottom: 5 }}
+                                >
                                     <CartesianGrid strokeDasharray="3 3" />
 
                                     <XAxis
-                                        dataKey="week"
+                                        dataKey="label"
                                         tick={{ fontSize: 12 }}
+                                        interval={mode === "month" ? 1 : 0}
                                     />
 
                                     <YAxis
-                                        tickFormatter={(value) =>
-                                            `₱${value}`
-                                        }
+                                        tickFormatter={(v) => `₱${compact.format(v)}`}
+                                        width={60}
                                     />
 
                                     <Tooltip
-                                        formatter={(value) => [
-                                            currency(value),
-                                            "Total Sales"
+                                        formatter={(value, name, item) => [
+                                            `${currency(value)} (${item.payload.count} transaction${
+                                                item.payload.count === 1 ? "" : "s"
+                                            })`,
+                                            "Sales"
                                         ]}
-                                        labelFormatter={(label) => {
-                                            const item = weeklySales.find(
-                                                (week) => week.week === label
-                                            );
-
-                                            return item
-                                                ? `${label} (days ${item.period})`
-                                                : label;
-                                        }}
+                                        labelFormatter={(label, payload) =>
+                                            payload?.[0]?.payload?.full || label
+                                        }
                                     />
 
-                                    <Legend />
-
-                                    <Line
-                                        type="monotone"
+                                    <Bar
                                         dataKey="sales"
-                                        name="Total Sales"
-                                        stroke="#2563eb"
-                                        strokeWidth={3}
-                                        dot={{ r: 5 }}
-                                        activeDot={{ r: 7 }}
-                                    />
-                                </LineChart>
+                                        name="Sales"
+                                        radius={[5, 5, 0, 0]}
+                                    >
+                                        {report.buckets.map((bucket) => (
+                                            <Cell
+                                                key={bucket.full}
+                                                fill={
+                                                    bucket === report.bestBucket
+                                                        ? "#16a34a"
+                                                        : "#2563eb"
+                                                }
+                                            />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </section>
 
-                    <section className="report-section">
-                        <div className="report-heading">
-                            <div>
-                                <h2>Best-Selling Products</h2>
-                                <p className="report-description">
-                                    Products ranked by quantity sold.
-                                </p>
-                            </div>
+                    {/* ---------- top products for the period ---------- */}
+                    <section className="dsh-section">
+                        <h2>Top Products</h2>
+                        <p className="dsh-description">
+                            Ranked by quantity sold in {report.name} (top 10).
+                        </p>
 
-                            <div className="week-filter">
-                                <label htmlFor="report-week">
-                                    Select Week
-                                </label>
-
-                                <select
-                                    id="report-week"
-                                    value={selectedWeek}
-                                    onChange={(e) =>
-                                        setSelectedWeek(
-                                            Number(e.target.value)
-                                        )
-                                    }
-                                >
-                                    {weeklySales.map((week, index) => (
-                                        <option
-                                            key={week.week}
-                                            value={index}
-                                        >
-                                            {week.week} ({week.period})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {weeklyProducts.length === 0 ? (
-                            <p className="empty-report">
-                                No product sales found for this week.
+                        {topProducts.length === 0 ? (
+                            <p className="dsh-empty">
+                                No product sales found for this {unit}.
                             </p>
                         ) : (
-                            <div className="chart-container">
-                                <ResponsiveContainer
-                                    width="100%"
-                                    height="100%"
-                                >
+                            <div
+                                className="dsh-chart"
+                                style={{
+                                    height: Math.max(
+                                        240,
+                                        topProducts.length * 38 + 50
+                                    )
+                                }}
+                            >
+                                <ResponsiveContainer width="100%" height="100%">
                                     <BarChart
-                                        data={weeklyProducts}
-                                        margin={{
-                                            top: 10,
-                                            right: 20,
-                                            left: 0,
-                                            bottom: 45
-                                        }}
+                                        data={topProducts}
+                                        layout="vertical"
+                                        margin={{ top: 5, right: 24, left: 8, bottom: 5 }}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" />
-
-                                        <XAxis
-                                            dataKey="name"
-                                            interval={0}
-                                            angle={-30}
-                                            textAnchor="end"
-                                            height={65}
-                                            tick={{ fontSize: 11 }}
-                                        />
-
+                                        <XAxis type="number" allowDecimals={false} />
                                         <YAxis
-                                            allowDecimals={false}
+                                            type="category"
+                                            dataKey="name"
+                                            width={150}
+                                            tick={{ fontSize: 12 }}
                                         />
-
-                                        <Tooltip />
-
-                                        <Legend />
-
+                                        <Tooltip
+                                            formatter={(value, name, item) => [
+                                                `${value} sold · ${currency(
+                                                    item.payload.revenue
+                                                )}`,
+                                                "Quantity"
+                                            ]}
+                                        />
                                         <Bar
                                             dataKey="quantity"
                                             name="Quantity Sold"
                                             fill="#16a34a"
-                                            radius={[5, 5, 0, 0]}
+                                            radius={[0, 5, 5, 0]}
                                         />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         )}
+                    </section>
+
+                    {/* ---------- best seller per week / month ---------- */}
+                    <section className="dsh-section">
+                        <div className="dsh-section-head">
+                            <div>
+                                <h2>
+                                    Best Sellers by{" "}
+                                    {bestBy === "week" ? "Week" : "Month"}
+                                </h2>
+                                <p className="dsh-description">
+                                    {bestSellers.subtitle}
+                                </p>
+                            </div>
+
+                            <div className="dsh-tabs">
+                                {[
+                                    ["week", "By Week"],
+                                    ["month", "By Month"]
+                                ].map(([value, label]) => (
+                                    <button
+                                        key={value}
+                                        className={
+                                            bestBy === value
+                                                ? "dsh-tab active"
+                                                : "dsh-tab"
+                                        }
+                                        onClick={() => setBestBy(value)}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="dsh-table-wrap">
+                            <table className="dsh-table">
+                                <thead>
+                                    <tr>
+                                        <th>{bestBy === "week" ? "Week" : "Month"}</th>
+                                        <th>Best Seller</th>
+                                        <th>Qty</th>
+                                        <th>Product Sales</th>
+                                        <th>Runner-up</th>
+                                        <th>Total Sales</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bestSellers.rows.map((row) => (
+                                        <tr
+                                            key={row.label}
+                                            className={row.best ? "" : "dsh-row-empty"}
+                                        >
+                                            <td>
+                                                <strong>{row.label}</strong>
+                                                {bestBy === "week" && (
+                                                    <span className="dsh-dates">
+                                                        {row.dates}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td>
+                                                {row.best ? (
+                                                    <strong>{row.best.name}</strong>
+                                                ) : (
+                                                    "No sales"
+                                                )}
+                                            </td>
+                                            <td>{row.best ? row.best.quantity : "—"}</td>
+                                            <td>
+                                                {row.best
+                                                    ? currency(row.best.revenue)
+                                                    : "—"}
+                                            </td>
+                                            <td>
+                                                {row.runnerUp
+                                                    ? `${row.runnerUp.name} (${row.runnerUp.quantity})`
+                                                    : "—"}
+                                            </td>
+                                            <td>{currency(row.sales)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </section>
                 </>
             )}

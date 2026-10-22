@@ -1,124 +1,158 @@
-.dashboard-page {
+.dsh-page {
     max-width: 1400px;
     margin: 0 auto;
     padding: 30px;
 }
 
-.dashboard-header {
+.dsh-header { margin-bottom: 20px; }
+.dsh-header h1 { margin: 0 0 8px; color: #111827; }
+.dsh-header p { margin: 0; color: #6b7280; font-size: 14px; }
+
+/* ----- period controls ----- */
+.dsh-controls {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
     flex-wrap: wrap;
-    gap: 20px;
-    margin-bottom: 25px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    margin-bottom: 22px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
-.dashboard-header h1 {
-    margin-bottom: 8px;
-    color: #111827;
-}
+.dsh-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 
-.dashboard-header p,
-.report-description {
-    margin: 0;
-    color: #6b7280;
-    font-size: 14px;
-}
-
-.month-filter,
-.week-filter {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-}
-
-.month-filter label,
-.week-filter label {
-    color: #374151;
-    font-size: 14px;
+.dsh-tab {
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #334155;
     font-weight: 600;
 }
+.dsh-tab:hover { background: #e2e8f0; }
+.dsh-tab.active { background: #0b3d6e; color: #fff; }
 
-.month-filter input,
-.week-filter select {
-    min-width: 170px;
-    padding: 10px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background: white;
-    color: #111827;
+.dsh-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dsh-nav > button { padding: 8px 14px; font-size: 18px; line-height: 1; }
+
+.dsh-nav-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-width: 220px;
+    text-align: center;
 }
 
-.dashboard-cards {
+.dsh-today { font-size: 14px !important; background: #e2e8f0; color: #0f172a; }
+.dsh-today:hover { background: #cbd5e1; }
+
+/* ----- cards ----- */
+.dsh-cards {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 20px;
-    margin-bottom: 25px;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
 }
 
-.dashboard-card {
-    padding: 25px;
-    background: white;
+.dsh-card {
+    padding: 20px;
+    background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     min-width: 0;
 }
+.dsh-card h2 { margin: 0 0 8px; color: #2563eb; font-size: 25px; overflow-wrap: anywhere; }
+.dsh-card p { margin: 0; color: #6b7280; font-size: 14px; }
 
-.dashboard-card h2 {
-    margin: 0 0 10px;
-    color: #2563eb;
-    font-size: 27px;
-    overflow-wrap: anywhere;
+.dsh-delta {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
 }
+.dsh-delta.up { background: #dcfce7; color: #166534; }
+.dsh-delta.down { background: #fee2e2; color: #991b1b; }
 
-.dashboard-card p {
-    margin: 0;
-    color: #6b7280;
-    font-size: 14px;
-}
-
-.report-section {
-    margin-bottom: 25px;
-    padding: 25px;
-    background: white;
+/* ----- sections ----- */
+.dsh-section {
+    margin-bottom: 22px;
+    padding: 24px;
+    background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     min-width: 0;
 }
+.dsh-section h2 { margin: 0 0 8px; color: #111827; font-size: 21px; }
 
-.report-section h2 {
-    margin: 0 0 10px;
-    color: #111827;
-    font-size: 21px;
-}
+.dsh-description { margin: 0 0 18px; color: #6b7280; font-size: 14px; line-height: 1.5; }
 
-.report-description {
-    margin-bottom: 20px;
-    line-height: 1.5;
-}
-
-.chart-container {
-    width: 100%;
-    height: 340px;
-    min-width: 0;
-}
-
-.report-heading {
+.dsh-section-head {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     flex-wrap: wrap;
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 16px;
+    margin-bottom: 4px;
 }
 
-.report-heading .report-description {
-    margin-bottom: 0;
-}
+.dsh-chart { width: 100%; height: 340px; min-width: 0; }
 
-.empty-report {
+/* ----- summary ----- */
+.dsh-summary-section { border-left: 4px solid #2563eb; }
+
+.dsh-summary {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.dsh-summary li {
+    padding-left: 18px;
+    position: relative;
+    color: #374151;
+    line-height: 1.55;
+}
+.dsh-summary li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.65em;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2563eb;
+}
+.dsh-summary strong { color: #111827; }
+
+/* ----- best seller table ----- */
+.dsh-table-wrap { overflow-x: auto; margin-top: 12px; }
+
+.dsh-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.dsh-table th {
+    padding: 12px;
+    background: #f3f4f6;
+    color: #374151;
+    text-align: left;
+    white-space: nowrap;
+}
+.dsh-table td { padding: 12px; border-top: 1px solid #e5e7eb; color: #4b5563; vertical-align: top; }
+.dsh-table tbody tr:hover { background: #f9fafb; }
+.dsh-row-empty td { color: #9ca3af; }
+
+.dsh-dates { display: block; font-size: 12px; color: #6b7280; }
+
+.dsh-empty {
     padding: 35px 15px;
     text-align: center;
     color: #6b7280;
@@ -126,7 +160,7 @@
     border-radius: 8px;
 }
 
-.dashboard-error {
+.dsh-error {
     padding: 12px;
     margin-bottom: 20px;
     border-radius: 6px;
@@ -135,46 +169,14 @@
 }
 
 @media (max-width: 800px) {
-    .dashboard-page {
-        padding: 20px;
-    }
-
-    .dashboard-cards {
-        grid-template-columns: 1fr;
-    }
-
-    .dashboard-card {
-        padding: 20px;
-    }
-
-    .report-section {
-        padding: 18px;
-    }
-
-    .chart-container {
-        height: 300px;
-    }
+    .dsh-page { padding: 20px; }
+    .dsh-section { padding: 18px; }
+    .dsh-chart { height: 300px; }
 }
 
 @media (max-width: 500px) {
-    .dashboard-page {
-        padding: 15px;
-    }
-
-    .dashboard-header {
-        align-items: stretch;
-    }
-
-    .month-filter input,
-    .week-filter select {
-        width: 100%;
-    }
-
-    .report-heading {
-        flex-direction: column;
-    }
-
-    .chart-container {
-        height: 280px;
-    }
+    .dsh-page { padding: 15px; }
+    .dsh-controls { flex-direction: column; align-items: stretch; }
+    .dsh-nav { justify-content: center; }
+    .dsh-chart { height: 280px; }
 }
