@@ -53,6 +53,25 @@ const transactionSchema = new mongoose.Schema({
         min: 0
     },
 
+    discountType: {
+        type: String,
+        enum: ["none", "senior_citizen", "pwd", "custom"],
+        default: "none"
+    },
+
+    discountRate: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0
+    },
+
+    discountAmount: {
+        type: Number,
+        min: 0,
+        default: 0
+    },
+
     total: {
         type: Number,
         required: true,

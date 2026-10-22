@@ -284,3 +284,6 @@
     white-space: normal;
     overflow-wrap: anywhere;
 }
+
+
+.txn-discount-value { color: #047857; font-weight: 700; }

@@ -194,6 +194,18 @@ function TransactionRow({ transaction, open, onToggle, canVoid, onVoid }) {
                         <div><dt>Cashier</dt><dd>{transaction.cashier}</dd></div>
                         <div><dt>Payment</dt><dd>{transaction.paymentMethod}</dd></div>
                         <div><dt>Subtotal</dt><dd>{peso(transaction.subtotal)}</dd></div>
+                        {Number(transaction.discountAmount || 0) > 0 && (
+                            <div>
+                                <dt>
+                                    {({
+                                        senior_citizen: "Senior Citizen",
+                                        pwd: "PWD",
+                                        custom: "Custom"
+                                    })[transaction.discountType] || "Discount"} ({Number(transaction.discountRate || 0)}%)
+                                </dt>
+                                <dd className="txn-discount-value">−{peso(transaction.discountAmount)}</dd>
+                            </div>
+                        )}
                         <div><dt>Amount paid</dt><dd>{peso(transaction.amountPaid)}</dd></div>
                         <div><dt>Change</dt><dd>{peso(transaction.change)}</dd></div>
                         <div className="txn-fact-total">

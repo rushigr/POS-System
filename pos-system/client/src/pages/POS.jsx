@@ -17,7 +17,29 @@ const NUMPAD_KEYS = [
     { key: "0" }, { key: "00" }, { key: "." }
 ];
 
-const peso = (n) => `₱${Number(n).toFixed(2)}`;
+const peso = (n) => `₱${Number(n || 0).toFixed(2)}`;
+const roundMoney = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+
+const DISCOUNT_TYPES = [
+    { value: "none", label: "No discount", rate: 0, description: "Regular order total" },
+    { value: "senior_citizen", label: "Senior Citizen", rate: 20, description: "20% discount" },
+    { value: "pwd", label: "PWD", rate: 20, description: "20% discount" },
+    { value: "custom", label: "Other discount", rate: null, description: "Enter a custom percentage" }
+];
+
+const discountTypeLabel = (type) => {
+    const option = DISCOUNT_TYPES.find((item) => item.value === type);
+    return option?.label || "Discount";
+};
+
+const getDiscountRate = (type, customRate) => {
+    if (type === "senior_citizen" || type === "pwd") return 20;
+    if (type === "custom") {
+        const parsed = Number(customRate);
+        return Number.isFinite(parsed) ? Math.min(100, Math.max(0, parsed)) : 0;
+    }
+    return 0;
+};
 
 // Shows the product photo, or a coloured initial tile if there's no
 // image or the URL fails to load.
@@ -52,6 +74,11 @@ function POS() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     const [showConfirmation, setShowConfirmation] = useState(false);
+    const [showDiscountModal, setShowDiscountModal] = useState(false);
+    const [discountType, setDiscountType] = useState("none");
+    const [customDiscountRate, setCustomDiscountRate] = useState("10");
+    const [pendingDiscountType, setPendingDiscountType] = useState("none");
+    const [pendingCustomDiscountRate, setPendingCustomDiscountRate] = useState("10");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [openNoteId, setOpenNoteId] = useState(null);
 
@@ -136,12 +163,72 @@ function POS() {
         setAmountPaid("");
         setTarget("paid");
         setFresh(true);
+        setDiscountType("none");
+        setCustomDiscountRate("10");
+        setShowDiscountModal(false);
     };
 
-    const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const subtotal = roundMoney(
+        cart.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0)
+    );
     const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
-    const paid = Number(amountPaid);
-    const change = paid >= total ? paid - total : 0;
+    const discountRate = getDiscountRate(discountType, customDiscountRate);
+    const discountAmount = Math.min(
+        subtotal,
+        roundMoney((subtotal * discountRate) / 100)
+    );
+    const total = roundMoney(Math.max(0, subtotal - discountAmount));
+    const paid = amountPaid === "" ? 0 : Number(amountPaid);
+    const change = paid >= total ? roundMoney(paid - total) : 0;
+
+    const pendingDiscountRate = getDiscountRate(
+        pendingDiscountType,
+        pendingCustomDiscountRate
+    );
+    const pendingDiscountAmount = Math.min(
+        subtotal,
+        roundMoney((subtotal * pendingDiscountRate) / 100)
+    );
+    const pendingTotal = roundMoney(Math.max(0, subtotal - pendingDiscountAmount));
+
+    const openDiscountSelector = () => {
+        setPendingDiscountType(discountType);
+        setPendingCustomDiscountRate(customDiscountRate);
+        setShowDiscountModal(true);
+    };
+
+    const applyDiscount = () => {
+        const rate = getDiscountRate(
+            pendingDiscountType,
+            pendingCustomDiscountRate
+        );
+
+        if (pendingDiscountType === "custom" && pendingCustomDiscountRate.trim() === "") {
+            alert("Enter a discount percentage from 0 to 100.");
+            return;
+        }
+
+        if (
+            pendingDiscountType === "custom" &&
+            (!Number.isFinite(Number(pendingCustomDiscountRate)) ||
+                Number(pendingCustomDiscountRate) < 0 ||
+                Number(pendingCustomDiscountRate) > 100)
+        ) {
+            alert("Discount percentage must be between 0 and 100.");
+            return;
+        }
+
+        if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+            alert("Discount percentage must be between 0 and 100.");
+            return;
+        }
+
+        setDiscountType(rate === 0 ? "none" : pendingDiscountType);
+        if (pendingDiscountType === "custom") {
+            setCustomDiscountRate(String(rate));
+        }
+        setShowDiscountModal(false);
+    };
 
     const quantityInCart = useMemo(() => {
         const map = {};
@@ -275,7 +362,7 @@ function POS() {
 
     const openConfirmation = () => {
         if (cart.length === 0) return alert("Cart is empty.");
-        if (amountPaid === "" || paid < total) {
+        if (total > 0 && (amountPaid === "" || paid < total)) {
             return alert("Please enter a sufficient payment amount.");
         }
         setShowConfirmation(true);
@@ -301,7 +388,10 @@ function POS() {
                     quantity: i.quantity,
                     notes: (i.notes || "").trim()
                 })),
-                subtotal: total,
+                subtotal,
+                discountType,
+                discountRate,
+                discountAmount,
                 total,
                 amountPaid: paid,
                 change,
@@ -498,10 +588,38 @@ function POS() {
                 </div>
 
                 <footer className="cart-footer">
+                    <div className="summary-line">
+                        <span>Subtotal</span>
+                        <span>{peso(subtotal)}</span>
+                    </div>
+
+                    {discountAmount > 0 && (
+                        <div className="summary-line discount-summary-line">
+                            <span>
+                                {discountTypeLabel(discountType)} ({discountRate}%)
+                            </span>
+                            <strong>−{peso(discountAmount)}</strong>
+                        </div>
+                    )}
+
                     <div className="summary-line total-line">
-                        <span>Total</span>
+                        <span>Total due</span>
                         <span>{peso(total)}</span>
                     </div>
+
+                    <button
+                        type="button"
+                        className={discountAmount > 0 ? "discount-trigger applied" : "discount-trigger"}
+                        onClick={openDiscountSelector}
+                        disabled={cart.length === 0 || isSubmitting}
+                    >
+                        <span>{discountAmount > 0 ? "Change discount" : "＋ Apply discount"}</span>
+                        <strong>
+                            {discountAmount > 0
+                                ? `${discountTypeLabel(discountType)} · ${discountRate}%`
+                                : "Senior, PWD, custom"}
+                        </strong>
+                    </button>
 
                     <div className="quick-cash">
                         <button
@@ -649,6 +767,94 @@ function POS() {
                 </button>
             </div>
 
+            {/* ============ DISCOUNT SELECTOR ============ */}
+            {showDiscountModal && (
+                <div
+                    className="confirmation-overlay discount-overlay"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setShowDiscountModal(false);
+                    }}
+                >
+                    <div
+                        className="confirmation-modal discount-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="discount-title"
+                    >
+                        <h2 id="discount-title">Apply Discount</h2>
+                        <p className="discount-intro">
+                            Choose one discount for this order. Discounts cannot be stacked.
+                        </p>
+
+                        <div className="discount-options" role="radiogroup" aria-label="Discount type">
+                            {DISCOUNT_TYPES.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={pendingDiscountType === option.value}
+                                    className={pendingDiscountType === option.value ? "discount-option selected" : "discount-option"}
+                                    onClick={() => setPendingDiscountType(option.value)}
+                                >
+                                    <span className="discount-option-copy">
+                                        <strong>{option.label}</strong>
+                                        <small>{option.description}</small>
+                                    </span>
+                                    <span className="discount-radio" aria-hidden="true">
+                                        {pendingDiscountType === option.value ? "●" : "○"}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {pendingDiscountType === "custom" && (
+                            <label className="custom-discount-field">
+                                Custom discount percentage
+                                <div className="custom-discount-input-wrap">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        step="0.5"
+                                        value={pendingCustomDiscountRate}
+                                        onChange={(e) => setPendingCustomDiscountRate(e.target.value)}
+                                        placeholder="Enter 0–100"
+                                    />
+                                    <span>%</span>
+                                </div>
+                            </label>
+                        )}
+
+                        <div className="discount-preview">
+                            <div><span>Subtotal</span><span>{peso(subtotal)}</span></div>
+                            <div><span>Discount</span><strong>−{peso(pendingDiscountAmount)}</strong></div>
+                            <div className="discount-preview-total"><strong>New total</strong><strong>{peso(pendingTotal)}</strong></div>
+                        </div>
+
+                        <p className="discount-policy-note">
+                            Senior Citizen and PWD are set to 20%. Verify eligibility and required documentation. This version applies the selected percentage directly to the subtotal; VAT-specific statutory calculations are not configured.
+                        </p>
+
+                        <div className="confirmation-actions">
+                            <button
+                                type="button"
+                                className="cancel-button"
+                                onClick={() => setShowDiscountModal(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="confirm-button"
+                                onClick={applyDiscount}
+                            >
+                                Apply discount
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ============ CONFIRM MODAL ============ */}
             {showConfirmation && (
                 <div
@@ -688,16 +894,28 @@ function POS() {
 
                         <div className="confirmation-summary">
                             <div>
+                                <span>Subtotal</span>
+                                <span>{peso(subtotal)}</span>
+                            </div>
+                            {discountAmount > 0 && (
+                                <div className="confirmation-discount-row">
+                                    <span>
+                                        {discountTypeLabel(discountType)} discount ({discountRate}%)
+                                    </span>
+                                    <strong>−{peso(discountAmount)}</strong>
+                                </div>
+                            )}
+                            <div className="confirmation-total">
+                                <strong>Total due</strong>
+                                <strong>{peso(total)}</strong>
+                            </div>
+                            <div>
                                 <span>Amount paid</span>
                                 <span>{peso(paid)}</span>
                             </div>
                             <div>
                                 <span>Change</span>
                                 <span>{peso(change)}</span>
-                            </div>
-                            <div className="confirmation-total">
-                                <strong>Total</strong>
-                                <strong>{peso(total)}</strong>
                             </div>
                         </div>
 
