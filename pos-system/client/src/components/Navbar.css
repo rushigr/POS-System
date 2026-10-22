@@ -149,3 +149,35 @@
     font-weight: 600;
     white-space: nowrap;
 }
+
+/* ===== Phones: brand on top, links scroll sideways ===== */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        padding: 8px 12px;
+    }
+
+    .navbar-brand a { font-size: 18px; }
+
+    .navbar-links {
+        gap: 4px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .navbar-links::-webkit-scrollbar { display: none; }
+
+    .nav-link,
+    .logout-button,
+    .navbar-username {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        padding: 9px 12px;
+        font-size: 14px;
+    }
+    .logout-button { margin-left: 0; }
+}

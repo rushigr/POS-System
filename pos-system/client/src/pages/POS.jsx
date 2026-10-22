@@ -1,9 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./POS.css";
 import API_URL from "../api";
 
 const CATEGORIES = ["All", "Ramen", "Rice Meal", "Snacks", "Add-Ons"];
 const QUICK_CASH = [100, 200, 500, 1000];
+const MAX_QTY = 99;
+
+// Built-in keypad. "back" and "clear" are functions, "enter" depends on mode.
+const NUMPAD_KEYS = [
+    { key: "7" }, { key: "8" }, { key: "9" },
+    { key: "back", label: "⌫", name: "Backspace", cls: "np-fn" },
+    { key: "4" }, { key: "5" }, { key: "6" },
+    { key: "clear", label: "C", name: "Clear", cls: "np-fn" },
+    { key: "1" }, { key: "2" }, { key: "3" },
+    { key: "enter", cls: "np-enter" },
+    { key: "0" }, { key: "00" }, { key: "." }
+];
 
 const peso = (n) => `₱${Number(n).toFixed(2)}`;
 
@@ -42,6 +54,13 @@ function POS() {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // What the keypad is typing into: the payment, or one cart line's quantity.
+    const [target, setTarget] = useState("paid"); // "paid" | cart item _id
+    // true = the next digit replaces the current value (like a calculator)
+    const [fresh, setFresh] = useState(true);
+    // phones: the order panel is a bottom sheet
+    const [cartOpen, setCartOpen] = useState(false);
+
     useEffect(() => {
         fetch(`${API_URL}/api/products`)
             .then((r) => {
@@ -60,7 +79,7 @@ function POS() {
             if (existing) {
                 return prev.map((i) =>
                     i._id === product._id
-                        ? { ...i, quantity: i.quantity + 1 }
+                        ? { ...i, quantity: Math.min(MAX_QTY, i.quantity + 1) }
                         : i
                 );
             }
@@ -80,15 +99,27 @@ function POS() {
         setCart((prev) =>
             prev
                 .map((i) =>
-                    i._id === id ? { ...i, quantity: i.quantity + delta } : i
+                    i._id === id
+                        ? {
+                              ...i,
+                              quantity: Math.min(MAX_QTY, i.quantity + delta)
+                          }
+                        : i
                 )
                 .filter((i) => i.quantity > 0)
         );
     };
 
+    const setQuantity = (id, quantity) =>
+        setCart((prev) =>
+            prev.map((i) => (i._id === id ? { ...i, quantity } : i))
+        );
+
     const clearCart = () => {
         setCart([]);
         setAmountPaid("");
+        setTarget("paid");
+        setFresh(true);
     };
 
     const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -101,6 +132,126 @@ function POS() {
         cart.forEach((i) => (map[i._id] = i.quantity));
         return map;
     }, [cart]);
+
+    /* ---------- keypad ---------- */
+
+    // The cart line being edited, or null when the keypad types the payment.
+    const activeLine =
+        target === "paid" ? null : cart.find((i) => i._id === target) || null;
+
+    const selectLine = (item) => {
+        setTarget(item._id);
+        setFresh(true);
+    };
+
+    const selectPayment = () => {
+        setTarget("paid");
+        setFresh(true);
+    };
+
+    const quickCash = (value) => {
+        setAmountPaid(value);
+        setTarget("paid");
+        setFresh(true);
+    };
+
+    const pressKey = (key) => {
+        /* ----- editing a quantity ----- */
+        if (activeLine) {
+            const id = activeLine._id;
+            const digits = String(activeLine.quantity);
+
+            if (key === "enter") return selectPayment();
+
+            if (key === "clear") {
+                setQuantity(id, 1);
+                setFresh(true);
+                return;
+            }
+
+            if (key === "back") {
+                setQuantity(id, digits.length > 1 ? Number(digits.slice(0, -1)) : 1);
+                setFresh(digits.length <= 1);
+                return;
+            }
+
+            if (/^\d+$/.test(key)) {
+                const next = ((fresh ? "" : digits) + key).replace(/^0+/, "");
+                if (!next || Number(next) > MAX_QTY) return;
+                setQuantity(id, Number(next));
+                setFresh(false);
+            }
+            return; // "." means nothing for a quantity
+        }
+
+        /* ----- typing the amount paid ----- */
+        if (key === "enter") return openConfirmation();
+
+        if (key === "clear") {
+            setAmountPaid("");
+            setFresh(false);
+            return;
+        }
+
+        if (key === "back") {
+            setAmountPaid((prev) => prev.slice(0, -1));
+            setFresh(false);
+            return;
+        }
+
+        const base = fresh ? "" : amountPaid;
+        let next;
+
+        if (key === ".") {
+            next = base.includes(".") ? base : (base || "0") + ".";
+        } else {
+            next = (base + key).replace(/^0+(?=\d)/, ""); // no leading zeros
+        }
+
+        // up to 7 whole digits and 2 decimals
+        if (!/^\d{0,7}(\.\d{0,2})?$/.test(next)) return;
+
+        setAmountPaid(next);
+        setFresh(false);
+    };
+
+    // Physical keyboard (desktop) drives the same keypad.
+    const handlePhysicalKey = (e) => {
+        if (showConfirmation || e.ctrlKey || e.metaKey || e.altKey) return;
+
+        const tag = e.target?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+        let key = null;
+        if (/^[0-9]$/.test(e.key) || e.key === ".") key = e.key;
+        else if (e.key === "Backspace") key = "back";
+        else if (e.key === "Delete" || e.key === "Escape") key = "clear";
+
+        if (!key) return;
+
+        e.preventDefault();
+        pressKey(key);
+    };
+
+    const keyHandlerRef = useRef(handlePhysicalKey);
+
+    useEffect(() => {
+        keyHandlerRef.current = handlePhysicalKey;
+    });
+
+    useEffect(() => {
+        const onKey = (e) => keyHandlerRef.current(e);
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
+
+    // Stop the page behind the phone order sheet from scrolling.
+    useEffect(() => {
+        document.body.style.overflow = cartOpen ? "hidden" : "";
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [cartOpen]);
 
     /* ---------- checkout ---------- */
 
@@ -148,6 +299,7 @@ function POS() {
             alert("Transaction completed!");
             setShowConfirmation(false);
             clearCart();
+            setCartOpen(false);
         } catch (error) {
             console.error(error);
             alert("Failed to complete transaction. Please try again.");
@@ -174,7 +326,13 @@ function POS() {
         });
 
     return (
-        <div className="pos-page">
+        <div className={cartOpen ? "pos-page cart-open" : "pos-page"}>
+            {/* dims the catalog behind the order sheet on phones */}
+            <div
+                className="cart-backdrop"
+                onClick={() => setCartOpen(false)}
+            />
+
             {/* ============ LEFT: ORDER ============ */}
             <section className="cart-panel">
                 <header className="cart-header">
@@ -184,13 +342,22 @@ function POS() {
                             {itemCount} item{itemCount === 1 ? "" : "s"}
                         </span>
                     </div>
-                    <button
-                        className="btn-ghost"
-                        onClick={clearCart}
-                        disabled={cart.length === 0}
-                    >
-                        Clear
-                    </button>
+                    <div className="cart-header-actions">
+                        <button
+                            className="btn-ghost"
+                            onClick={clearCart}
+                            disabled={cart.length === 0}
+                        >
+                            Clear
+                        </button>
+                        <button
+                            className="cart-close"
+                            onClick={() => setCartOpen(false)}
+                            aria-label="Close order"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </header>
 
                 <div className="cart-table-head">
@@ -206,7 +373,14 @@ function POS() {
                         </p>
                     ) : (
                         cart.map((item) => (
-                            <div className="cart-row" key={item._id}>
+                            <div
+                                className={
+                                    activeLine?._id === item._id
+                                        ? "cart-row active"
+                                        : "cart-row"
+                                }
+                                key={item._id}
+                            >
                                 <div className="cart-row-name">
                                     <strong>{item.name}</strong>
                                     <span>{peso(item.price)}</span>
@@ -214,6 +388,7 @@ function POS() {
 
                                 <div className="qty-control">
                                     <button
+                                        className="qty-step"
                                         onClick={() =>
                                             changeQuantity(item._id, -1)
                                         }
@@ -221,8 +396,15 @@ function POS() {
                                     >
                                         −
                                     </button>
-                                    <span>{item.quantity}</span>
                                     <button
+                                        className="qty-value"
+                                        onClick={() => selectLine(item)}
+                                        aria-label={`Edit quantity of ${item.name}`}
+                                    >
+                                        {item.quantity}
+                                    </button>
+                                    <button
+                                        className="qty-step"
                                         onClick={() =>
                                             changeQuantity(item._id, 1)
                                         }
@@ -248,7 +430,7 @@ function POS() {
 
                     <div className="quick-cash">
                         <button
-                            onClick={() => setAmountPaid(total.toFixed(2))}
+                            onClick={() => quickCash(total.toFixed(2))}
                             disabled={total === 0}
                         >
                             Exact
@@ -256,22 +438,52 @@ function POS() {
                         {QUICK_CASH.map((amt) => (
                             <button
                                 key={amt}
-                                onClick={() => setAmountPaid(String(amt))}
+                                onClick={() => quickCash(String(amt))}
                             >
                                 ₱{amt}
                             </button>
                         ))}
                     </div>
 
-                    <input
-                        className="payment-input"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Amount paid"
-                        value={amountPaid}
-                        onChange={(e) => setAmountPaid(e.target.value)}
-                    />
+                    <button
+                        type="button"
+                        className={
+                            "payment-display" +
+                            (activeLine ? "" : " active") +
+                            (amountPaid === "" ? " empty" : "")
+                        }
+                        onClick={selectPayment}
+                    >
+                        <span className="pd-label">Amount paid</span>
+                        <span className="pd-value">
+                            ₱{amountPaid === "" ? "0.00" : amountPaid}
+                        </span>
+                    </button>
+
+                    {activeLine && (
+                        <div className="numpad-hint">
+                            Editing quantity: <strong>{activeLine.name}</strong>
+                        </div>
+                    )}
+
+                    <div className="numpad" role="group" aria-label="Number pad">
+                        {NUMPAD_KEYS.map((k) => (
+                            <button
+                                key={k.key}
+                                type="button"
+                                className={k.cls || ""}
+                                onClick={() => pressKey(k.key)}
+                                disabled={Boolean(activeLine) && k.key === "."}
+                                aria-label={k.name || k.key}
+                            >
+                                {k.key === "enter"
+                                    ? activeLine
+                                        ? "Done"
+                                        : "Charge"
+                                    : k.label || k.key}
+                            </button>
+                        ))}
+                    </div>
 
                     <div className="summary-line">
                         <span>Change</span>
@@ -347,6 +559,20 @@ function POS() {
                     </div>
                 )}
             </section>
+
+            {/* ============ PHONE: BOTTOM ORDER BAR ============ */}
+            <div className="mobile-bar">
+                <button
+                    className="mobile-bar-btn"
+                    onClick={() => setCartOpen(true)}
+                >
+                    <span>
+                        {itemCount} item{itemCount === 1 ? "" : "s"}
+                    </span>
+                    <strong>{peso(total)}</strong>
+                    <span>View order ›</span>
+                </button>
+            </div>
 
             {/* ============ CONFIRM MODAL ============ */}
             {showConfirmation && (

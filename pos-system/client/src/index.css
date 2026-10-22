@@ -18,3 +18,12 @@ select {
 button {
     cursor: pointer;
 }
+
+/* Phones: 16px form text stops iOS Safari zooming in when a field is focused. */
+@media (max-width: 768px) {
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+}
