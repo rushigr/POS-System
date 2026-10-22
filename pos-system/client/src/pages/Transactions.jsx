@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./Transactions.css";
 import API_URL from "../api";
+import Receipt from "../components/Receipt";
 
 const PAGE_SIZE = 50;
 
@@ -118,7 +119,7 @@ function rangeLabel(mode, anchor, custom) {
 
 /* ---------- one expandable transaction ---------- */
 
-function TransactionRow({ transaction, open, onToggle, canVoid, onVoid }) {
+function TransactionRow({ transaction, open, onToggle, canVoid, onVoid, onReceipt }) {
     const voided = transaction.status === "voided";
     const items = transaction.items || [];
     const itemCount = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
@@ -228,8 +229,15 @@ function TransactionRow({ transaction, open, onToggle, canVoid, onVoid }) {
                         </div>
                     )}
 
-                    {canVoid && !voided && (
-                        <div className="txn-actions">
+                    <div className="txn-actions">
+                        <button
+                            type="button"
+                            className="txn-receipt-btn"
+                            onClick={() => onReceipt(transaction)}
+                        >
+                            View / Print receipt
+                        </button>
+                        {canVoid && !voided && (
                             <button
                                 type="button"
                                 className="txn-void-btn"
@@ -237,8 +245,8 @@ function TransactionRow({ transaction, open, onToggle, canVoid, onVoid }) {
                             >
                                 Void transaction
                             </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             )}
         </div>
@@ -250,6 +258,7 @@ function TransactionRow({ transaction, open, onToggle, canVoid, onVoid }) {
 function Transactions() {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [receiptTransaction, setReceiptTransaction] = useState(null);
     const [error, setError] = useState("");
 
     const [mode, setMode] = useState("all"); // all | day | week | month
@@ -650,6 +659,7 @@ function Transactions() {
                                     onToggle={() => toggle(t._id)}
                                     canVoid={isAdmin}
                                     onVoid={openVoid}
+                                    onReceipt={setReceiptTransaction}
                                 />
                             ))}
                         </section>
@@ -668,6 +678,14 @@ function Transactions() {
                         </div>
                     )}
                 </>
+            )}
+
+            {/* ----- receipt preview / print ----- */}
+            {receiptTransaction && (
+                <Receipt
+                    transaction={receiptTransaction}
+                    onClose={() => setReceiptTransaction(null)}
+                />
             )}
 
             {/* ----- void confirmation ----- */}

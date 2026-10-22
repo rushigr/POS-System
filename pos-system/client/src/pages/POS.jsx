@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./POS.css";
 import API_URL from "../api";
+import Receipt from "../components/Receipt";
 
 const CATEGORIES = ["All", "Ramen", "Rice Meal", "Snacks", "Add-Ons"];
 const QUICK_CASH = [100, 200, 500, 1000];
@@ -74,6 +75,7 @@ function POS() {
     const [selectedCategory, setSelectedCategory] = useState("All");
 
     const [showConfirmation, setShowConfirmation] = useState(false);
+    const [receiptTransaction, setReceiptTransaction] = useState(null);
     const [showDiscountModal, setShowDiscountModal] = useState(false);
     const [discountType, setDiscountType] = useState("none");
     const [customDiscountRate, setCustomDiscountRate] = useState("10");
@@ -406,7 +408,8 @@ function POS() {
 
             if (!response.ok) throw new Error("Checkout failed");
 
-            alert("Transaction completed!");
+            const savedTransaction = await response.json();
+            setReceiptTransaction(savedTransaction);
             setShowConfirmation(false);
             clearCart();
             setCartOpen(false);
@@ -939,6 +942,12 @@ function POS() {
                         </div>
                     </div>
                 </div>
+            )}
+            {receiptTransaction && (
+                <Receipt
+                    transaction={receiptTransaction}
+                    onClose={() => setReceiptTransaction(null)}
+                />
             )}
         </div>
     );

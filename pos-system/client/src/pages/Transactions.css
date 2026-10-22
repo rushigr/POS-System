@@ -287,3 +287,33 @@
 
 
 .txn-discount-value { color: #047857; font-weight: 700; }
+
+/* Receipt action in transaction history */
+.txn-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.txn-receipt-btn {
+    padding: 8px 14px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.txn-receipt-btn:hover {
+    background: #dbeafe;
+}
+
+@media (max-width: 520px) {
+    .txn-actions {
+        justify-content: stretch;
+    }
+
+    .txn-actions button {
+        flex: 1;
+    }
+}
