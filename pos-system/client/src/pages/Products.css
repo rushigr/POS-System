@@ -15,8 +15,6 @@
     color: #374151;
 }
 
-/* Add / Edit Form */
-
 .product-form-container {
     background-color: white;
     padding: 20px;
@@ -89,8 +87,6 @@
     background-color: #4b5563 !important;
 }
 
-/* Product Cards */
-
 .product-list {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -124,8 +120,6 @@
 .product-card strong {
     color: #374151;
 }
-
-/* Product Buttons */
 
 .product-actions {
     display: flex;
@@ -197,4 +191,13 @@
     .product-actions {
         flex-direction: column;
     }
+}
+
+.product-thumb {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: block;
 }

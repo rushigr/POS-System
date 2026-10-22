@@ -189,3 +189,188 @@
         padding: 10px;
     }
 }
+
+.users-success {
+    margin: 18px 0;
+    padding: 12px;
+    border-radius: 6px;
+    background: #dcfce7;
+    color: #166534;
+}
+
+.user-form-actions button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* ----- password field + strength meter ----- */
+.pw-input-wrap {
+    position: relative;
+}
+
+.pw-input-wrap input {
+    padding-right: 64px;
+}
+
+.pw-toggle {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    padding: 4px 10px;
+    background: transparent;
+    color: #2563eb;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.pw-toggle:hover {
+    background: #eff6ff;
+}
+
+.pw-meter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin-top: 4px;
+}
+
+.pw-bars {
+    display: flex;
+    flex: 1;
+    gap: 4px;
+}
+
+.pw-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: #e5e7eb;
+}
+
+.pw-bar.on.level-1 { background: #dc2626; }
+.pw-bar.on.level-2 { background: #f59e0b; }
+.pw-bar.on.level-3 { background: #84cc16; }
+.pw-bar.on.level-4 { background: #16a34a; }
+
+.pw-label {
+    font-size: 13px;
+    font-weight: 700;
+    min-width: 62px;
+    text-align: right;
+}
+
+.pw-label.level-0,
+.pw-label.level-1 { color: #dc2626; }
+.pw-label.level-2 { color: #d97706; }
+.pw-label.level-3 { color: #65a30d; }
+.pw-label.level-4 { color: #16a34a; }
+
+.pw-checklist {
+    width: 100%;
+    margin: 4px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.pw-checklist li {
+    margin-bottom: 2px;
+}
+
+.pw-checklist li.met {
+    color: #16a34a;
+}
+
+/* ----- confirmation modal ----- */
+.user-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.user-confirm-modal {
+    width: 100%;
+    max-width: 440px;
+    padding: 24px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+}
+
+.user-confirm-modal h2 {
+    margin: 0 0 16px;
+}
+
+.user-confirm-changes {
+    border-top: 1px solid #e5e7eb;
+}
+
+.user-confirm-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+}
+
+.user-confirm-label {
+    color: #6b7280;
+}
+
+.user-confirm-value {
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.user-confirm-from {
+    color: #b91c1c;
+    text-decoration: line-through;
+}
+
+.user-confirm-warning {
+    margin: 16px 0 0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 14px;
+}
+
+.user-confirm-warning.danger {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.user-confirm-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.user-confirm-actions button {
+    flex: 1;
+    padding: 12px;
+    font-weight: 600;
+}
+
+.user-confirm-button {
+    background: #16a34a;
+}
+
+.user-confirm-button:hover:not(:disabled) {
+    background: #15803d;
+}
+
+.user-confirm-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
