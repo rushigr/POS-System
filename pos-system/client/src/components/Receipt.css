@@ -254,31 +254,52 @@
 
 @media print {
     @page {
-        margin: 4mm;
+        margin: 0;
     }
 
+    html,
+    body,
+    #root {
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+    }
+
+    /* Hide the application without allowing it to print visibly. */
     body * {
         visibility: hidden !important;
     }
 
+    /* Show only the receipt and its contents. */
     .receipt-overlay,
     .receipt-overlay * {
         visibility: visible !important;
     }
 
+    /* Anchor the receipt at the beginning of the printed page. */
     .receipt-overlay {
-        position: static !important;
-        display: block !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: auto !important;
         inset: auto !important;
+        display: block !important;
+        width: 80mm !important;
+        height: auto !important;
+        min-height: 0 !important;
         overflow: visible !important;
         padding: 0 !important;
+        margin: 0 !important;
         background: #fff !important;
     }
 
     .receipt-dialog {
+        position: static !important;
         width: 72mm !important;
         max-width: 72mm !important;
         max-height: none !important;
+        height: auto !important;
         overflow: visible !important;
         margin: 0 auto !important;
         padding: 0 !important;
@@ -295,18 +316,28 @@
 
     .receipt-print-area {
         width: 72mm !important;
-        padding: 0 !important;
+        max-width: 72mm !important;
+        box-sizing: border-box !important;
+        padding: 2mm !important;
         border: 0 !important;
+        margin: 0 !important;
         font-size: 11px !important;
+        background: #fff !important;
+    }
+
+    .receipt-items-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
     }
 
     .receipt-items-table th,
     .receipt-items-table td {
         font-size: 10px !important;
-        padding: 5px 2px !important;
+        padding: 4px 2px !important;
     }
 
-    .receipt-meta {
-        gap: 6px 8px !important;
+    .receipt-items-table tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
 }
