@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 
 const transactionSchema = new mongoose.Schema({
@@ -11,6 +10,14 @@ const transactionSchema = new mongoose.Schema({
     cashier: {
         type: String,
         required: true
+    },
+
+    // Associates the sale with the login session that created it.
+    // Optional for backwards compatibility with older transactions.
+    sessionId: {
+        type: String,
+        default: null,
+        index: true
     },
 
     items: [
@@ -74,31 +81,18 @@ const transactionSchema = new mongoose.Schema({
         default: Date.now
     },
 
-    // Voiding preserves the transaction record for auditing.
-    // Older records without a status are treated as completed.
+    // Voiding keeps the record (for audit/reporting) but removes it from sales totals.
+    // Older documents have no status; treat a missing status as "completed".
     status: {
         type: String,
         enum: ["completed", "voided"],
         default: "completed"
     },
-
-    voidedAt: {
-        type: Date
-    },
-
-    voidedBy: {
-        type: String
-    },
-
-    voidReason: {
-        type: String,
-        maxlength: 200
-    }
+    voidedAt: { type: Date },
+    voidedBy: { type: String },
+    voidReason: { type: String, maxlength: 200 }
 }, {
     collection: "Transaction"
 });
 
-module.exports = mongoose.model(
-    "Transaction",
-    transactionSchema
-);
+module.exports = mongoose.model("Transaction", transactionSchema);

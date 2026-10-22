@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const UserSession = require("../models/UserSession");
+const Transaction = require("../models/Transaction");
 const adminOnly = require("../middleware/adminMiddleware");
 
 const router = express.Router();
@@ -170,6 +171,78 @@ router.get("/", adminOnly, async (req, res) => {
             (a, b) => new Date(b.loginAt).getTime() - new Date(a.loginAt).getTime()
         );
 
+        // Associate recent sales with the login session that created them.
+        // Older transactions without sessionId are matched by cashier + time
+        // window as a best-effort estimate for historical activity.
+        const sessionIds = records.map((session) => String(session._id));
+        const usernames = [...new Set(records.map((session) => session.username))];
+        const earliestLoginAt = records.length
+            ? new Date(Math.min(...records.map((session) => new Date(session.loginAt).getTime())))
+            : now;
+
+        const transactions = records.length
+            ? await Transaction.find({
+                status: { $ne: "voided" },
+                $or: [
+                    { sessionId: { $in: sessionIds } },
+                    {
+                        cashier: { $in: usernames },
+                        createdAt: { $gte: earliestLoginAt, $lte: now },
+                        $or: [
+                            { sessionId: { $exists: false } },
+                            { sessionId: null },
+                            { sessionId: "" }
+                        ]
+                    }
+                ]
+            })
+                .select("sessionId cashier total subtotal items createdAt transactionNumber status")
+                .lean()
+            : [];
+
+        const summaries = new Map(sessionIds.map((id) => [id, {
+            transactionCount: 0,
+            salesTotal: 0,
+            itemsSold: 0,
+            estimatedTransactionCount: 0
+        }]));
+
+        for (const transaction of transactions) {
+            let targetSession = transaction.sessionId
+                ? String(transaction.sessionId)
+                : null;
+            let estimated = false;
+
+            if (!targetSession || !summaries.has(targetSession)) {
+                const transactionTime = new Date(transaction.createdAt).getTime();
+                // records are sorted newest session first; when legacy sessions
+                // overlap, attribute the transaction to the newest matching session.
+                const matchingSession = records.find((session) => {
+                    if (session.username !== transaction.cashier) return false;
+                    const start = new Date(session.loginAt).getTime();
+                    const end = session.offlineAt
+                        ? new Date(session.offlineAt).getTime()
+                        : now.getTime();
+                    return transactionTime >= start && transactionTime <= end;
+                });
+
+                if (!matchingSession) continue;
+                targetSession = String(matchingSession._id);
+                estimated = true;
+            }
+
+            const summary = summaries.get(targetSession);
+            if (!summary) continue;
+
+            summary.transactionCount += 1;
+            summary.salesTotal += Number(transaction.total ?? transaction.subtotal ?? 0);
+            summary.itemsSold += (transaction.items || []).reduce(
+                (sum, item) => sum + Math.max(0, Number(item.quantity) || 0),
+                0
+            );
+            if (estimated) summary.estimatedTransactionCount += 1;
+        }
+
         const sessions = records.map((session) => {
             const lastSeen = new Date(session.lastSeenAt).getTime();
             const isActive = !session.offlineAt && lastSeen > cutoff.getTime();
@@ -178,6 +251,12 @@ router.get("/", adminOnly, async (req, res) => {
                     ? null
                     : new Date(lastSeen + INACTIVITY_TIMEOUT_MS)
             );
+            const activity = summaries.get(String(session._id)) || {
+                transactionCount: 0,
+                salesTotal: 0,
+                itemsSold: 0,
+                estimatedTransactionCount: 0
+            };
 
             return {
                 _id: String(session._id),
@@ -188,7 +267,14 @@ router.get("/", adminOnly, async (req, res) => {
                 lastSeenAt: session.lastSeenAt,
                 offlineAt,
                 endedBy: session.endedBy || (isActive ? null : "inactivity"),
-                status: isActive ? "active" : "offline"
+                status: isActive ? "active" : "offline",
+                activity: {
+                    transactionCount: activity.transactionCount,
+                    salesTotal: Math.round(activity.salesTotal * 100) / 100,
+                    itemsSold: activity.itemsSold,
+                    estimated: activity.estimatedTransactionCount > 0,
+                    estimatedTransactionCount: activity.estimatedTransactionCount
+                }
             };
         });
 

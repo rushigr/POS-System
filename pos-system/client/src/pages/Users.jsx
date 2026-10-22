@@ -4,6 +4,14 @@ import "./Users.css";
 import API_URL from "../api";
 import { evaluatePassword } from "../utils/passwordStrength";
 
+const formatSessionCurrency = (value) =>
+    new Intl.NumberFormat("en-PH", {
+        style: "currency",
+        currency: "PHP",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(Number(value) || 0);
+
 const formatSessionDateTime = (value) => {
     if (!value) return "—";
     const date = new Date(value);
@@ -603,6 +611,7 @@ function Users() {
                                     <th>Status</th>
                                     <th>Login time</th>
                                     <th>Active duration</th>
+                                    <th>Session summary</th>
                                     <th>Last activity</th>
                                     <th>Offline time</th>
                                 </tr>
@@ -634,6 +643,22 @@ function Users() {
                                             <td className="session-duration">
                                                 {formatSessionDuration(session.loginAt, durationEnd)}
                                             </td>
+                                            <td className="session-summary-cell">
+                                                <strong>
+                                                    {session.activity?.transactionCount || 0} {Number(session.activity?.transactionCount || 0) === 1 ? "transaction" : "transactions"}
+                                                </strong>
+                                                <span>
+                                                    {formatSessionCurrency(session.activity?.salesTotal)} sales
+                                                </span>
+                                                <small>
+                                                    {session.activity?.itemsSold || 0} items sold
+                                                </small>
+                                                {session.activity?.estimated && (
+                                                    <small className="session-summary-estimated">
+                                                        Includes estimated older records
+                                                    </small>
+                                                )}
+                                            </td>
                                             <td>{formatSessionDateTime(session.lastSeenAt)}</td>
                                             <td>
                                                 {offlineLabel}
@@ -653,8 +678,10 @@ function Users() {
                 )}
 
                 <p className="session-activity-footnote">
-                    Browser closures and lost connections are detected after 90 seconds without a heartbeat,
-                    so those offline times are estimates. Clicking Logout records the server time of logout.
+                    Sales summaries exclude voided transactions. New transactions are linked directly to their login session;
+                    older transactions are matched by username and time window when possible. This is sales revenue, not profit.
+                    Browser closures and lost connections are detected after 90 seconds without a heartbeat, so those offline
+                    times are estimates. Clicking Logout records the server time of logout.
                 </p>
             </section>
 

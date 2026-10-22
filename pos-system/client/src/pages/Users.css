@@ -565,3 +565,179 @@
         padding: 12px;
     }
 }
+
+
+/* ----- compact layout to reduce overall Users-page scrolling ----- */
+.users-page {
+    max-width: 1480px;
+    padding: 18px 22px;
+}
+
+.users-page h1 {
+    margin-bottom: 14px;
+    font-size: clamp(24px, 2.5vw, 30px);
+}
+
+.users-page h2 {
+    margin: 14px 0 10px;
+    font-size: 19px;
+}
+
+.user-form-container {
+    padding: 18px;
+}
+
+.user-form {
+    gap: 11px 14px;
+}
+
+.user-form-field input,
+.user-form-field select {
+    padding: 9px 11px;
+}
+
+.user-form-actions button {
+    padding: 9px 14px;
+}
+
+.users-table-container {
+    max-height: 340px;
+    overflow: auto;
+}
+
+.users-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 10px 12px;
+}
+
+.users-table td {
+    padding: 9px 12px;
+}
+
+.session-activity-section {
+    margin-top: 18px;
+    padding: 18px;
+}
+
+.session-activity-header {
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.session-activity-header h2 {
+    margin: 0 0 4px;
+}
+
+.session-stat-cards {
+    gap: 9px;
+    margin-bottom: 12px;
+}
+
+.session-stat-card {
+    gap: 4px;
+    padding: 11px 14px;
+}
+
+.session-stat-card strong {
+    font-size: 22px;
+}
+
+.session-table-container {
+    max-height: 410px;
+    overflow: auto;
+}
+
+.session-table th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 9px 11px;
+}
+
+.session-table td {
+    padding: 9px 11px;
+}
+
+.session-summary-cell {
+    min-width: 150px;
+    white-space: normal !important;
+}
+
+.session-summary-cell strong,
+.session-summary-cell span,
+.session-summary-cell small {
+    display: block;
+    line-height: 1.35;
+}
+
+.session-summary-cell strong {
+    color: #111827;
+    font-size: 12px;
+}
+
+.session-summary-cell span {
+    margin-top: 2px;
+    color: #047857;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.session-summary-cell small {
+    margin-top: 2px;
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.session-summary-cell .session-summary-estimated {
+    color: #92400e;
+}
+
+.session-activity-footnote {
+    margin: 10px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+@media (max-width: 800px) {
+    .users-page {
+        padding: 14px;
+    }
+
+    .user-form-container,
+    .session-activity-section {
+        padding: 14px;
+    }
+
+    .users-table-container {
+        max-height: 300px;
+    }
+
+    .session-table-container {
+        max-height: 360px;
+    }
+}
+
+@media (max-width: 500px) {
+    .session-stat-cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .session-stat-card {
+        padding: 9px 8px;
+    }
+
+    .session-stat-label {
+        font-size: 11px;
+    }
+
+    .session-stat-card strong {
+        font-size: 20px;
+    }
+
+    .session-activity-header {
+        align-items: flex-start;
+    }
+}

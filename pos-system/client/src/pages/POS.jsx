@@ -294,6 +294,7 @@ function POS() {
                     Math.random() * 1000
                 )}`,
                 cashier: user?.username || "Unknown",
+                sessionId: user?.sessionId || null,
                 items: cart.map((i) => ({
                     name: i.name,
                     price: i.price,
