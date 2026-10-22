@@ -38,12 +38,13 @@ router.get("/:id", async (req, res) => {
 //ADD product
 router.post("/", adminOnly, async (req, res) => {
     try {
-        const { name, category, price } = req.body;
+        const { name, category, price, image } = req.body;
 
         const product = await Product.create({
             name,
             category,
-            price
+            price,
+            image
         });
 
         res.status(201).json(product);
@@ -57,10 +58,12 @@ router.post("/", adminOnly, async (req, res) => {
 //UPDATE product
 router.put("/:id", adminOnly, async (req, res) => {
     try {
+        const { name, category, price, image } = req.body;
+
         const product = await Product.findByIdAndUpdate(
             req.params.id,
-            req.body,
-            { new: true }
+            { name, category, price, image },
+            { new: true, runValidators: true }
         );
 
         if (!product) {

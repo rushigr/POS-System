@@ -1,19 +1,39 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./POS.css";
 import API_URL from "../api";
 
-const categories = [
-    "All",
-    "Ramen",
-    "Rice Meal",
-    "Snacks",
-    "Add-Ons"
-];
+const CATEGORIES = ["All", "Ramen", "Rice Meal", "Snacks", "Add-Ons"];
+const QUICK_CASH = [100, 200, 500, 1000];
+
+const peso = (n) => `₱${Number(n).toFixed(2)}`;
+
+// Shows the product photo, or a coloured initial tile if there's no
+// image or the URL fails to load.
+function ProductImage({ product }) {
+    const [failed, setFailed] = useState(false);
+
+    if (product.image && !failed) {
+        return (
+            <img
+                className="product-img"
+                src={product.image}
+                alt={product.name}
+                loading="lazy"
+                onError={() => setFailed(true)}
+            />
+        );
+    }
+
+    return (
+        <div className="product-fallback">
+            {product.name.charAt(0).toUpperCase()}
+        </div>
+    );
+}
 
 function POS() {
     const [products, setProducts] = useState([]);
-    const [cart, setCart] = useState([]);
+    const [cart, setCart] = useState([]); // [{_id, name, price, quantity}]
     const [amountPaid, setAmountPaid] = useState("");
 
     const [search, setSearch] = useState("");
@@ -24,59 +44,76 @@ function POS() {
 
     useEffect(() => {
         fetch(`${API_URL}/api/products`)
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error("Failed to load products");
-                }
-                return response.json();
+            .then((r) => {
+                if (!r.ok) throw new Error("Failed to load products");
+                return r.json();
             })
-            .then((data) => setProducts(data))
-            .catch((error) => console.error(error));
+            .then(setProducts)
+            .catch(console.error);
     }, []);
 
+    /* ---------- cart ---------- */
+
     const addToCart = (product) => {
-        setCart((previousCart) => [...previousCart, product]);
+        setCart((prev) => {
+            const existing = prev.find((i) => i._id === product._id);
+            if (existing) {
+                return prev.map((i) =>
+                    i._id === product._id
+                        ? { ...i, quantity: i.quantity + 1 }
+                        : i
+                );
+            }
+            return [
+                ...prev,
+                {
+                    _id: product._id,
+                    name: product.name,
+                    price: Number(product.price),
+                    quantity: 1
+                }
+            ];
+        });
     };
 
-    const removeFromCart = (indexToRemove) => {
-        setCart((previousCart) =>
-            previousCart.filter((_, index) => index !== indexToRemove)
+    const changeQuantity = (id, delta) => {
+        setCart((prev) =>
+            prev
+                .map((i) =>
+                    i._id === id ? { ...i, quantity: i.quantity + delta } : i
+                )
+                .filter((i) => i.quantity > 0)
         );
     };
 
-    const total = cart.reduce(
-        (sum, product) => sum + Number(product.price),
-        0
-    );
+    const clearCart = () => {
+        setCart([]);
+        setAmountPaid("");
+    };
 
+    const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
     const paid = Number(amountPaid);
-
     const change = paid >= total ? paid - total : 0;
 
+    const quantityInCart = useMemo(() => {
+        const map = {};
+        cart.forEach((i) => (map[i._id] = i.quantity));
+        return map;
+    }, [cart]);
+
+    /* ---------- checkout ---------- */
+
     const openConfirmation = () => {
-        if (cart.length === 0) {
-            alert("Cart is empty.");
-            return;
+        if (cart.length === 0) return alert("Cart is empty.");
+        if (amountPaid === "" || paid < total) {
+            return alert("Please enter a sufficient payment amount.");
         }
-
-        if (amountPaid.trim() === "" || paid < total) {
-            alert("Please enter a sufficient payment amount.");
-            return;
-        }
-
         setShowConfirmation(true);
     };
 
-    // Saves the transaction only after confirmation.
     const checkout = async () => {
         if (isSubmitting) return;
-
-        if (cart.length === 0 || paid < total) {
-            alert("Please check your cart and payment.");
-            setShowConfirmation(false);
-            return;
-        }
-
         setIsSubmitting(true);
 
         try {
@@ -84,40 +121,33 @@ function POS() {
             const user = savedUser ? JSON.parse(savedUser) : null;
 
             const transaction = {
-                transactionNumber: "TRX-" + Date.now(),
+                transactionNumber: `TRX-${Date.now()}-${Math.floor(
+                    Math.random() * 1000
+                )}`,
                 cashier: user?.username || "Unknown",
-                items: cart.map((product) => ({
-                    name: product.name,
-                    price: Number(product.price),
-                    quantity: 1
+                items: cart.map((i) => ({
+                    name: i.name,
+                    price: i.price,
+                    quantity: i.quantity
                 })),
                 subtotal: total,
-                total: total,
+                total,
                 amountPaid: paid,
-                change: change,
+                change,
                 paymentMethod: "Cash"
             };
 
-            const response = await fetch(
-                `${API_URL}/api/transactions`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(transaction)
-                }
-            );
+            const response = await fetch(`${API_URL}/api/transactions`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(transaction)
+            });
 
-            if (!response.ok) {
-                throw new Error("Checkout failed");
-            }
+            if (!response.ok) throw new Error("Checkout failed");
 
             alert("Transaction completed!");
-
             setShowConfirmation(false);
-            setCart([]);
-            setAmountPaid("");
+            clearCart();
         } catch (error) {
             console.error(error);
             alert("Failed to complete transaction. Please try again.");
@@ -126,117 +156,112 @@ function POS() {
         }
     };
 
+    /* ---------- filtering ---------- */
+
     const filteredProducts = products
-        .filter((product) => {
-            const matchesSearch = product.name
+        .filter((p) => {
+            const matchesSearch = p.name
                 .toLowerCase()
                 .includes(search.toLowerCase());
-
             const matchesCategory =
-                selectedCategory === "All" ||
-                product.category === selectedCategory;
-
+                selectedCategory === "All" || p.category === selectedCategory;
             return matchesSearch && matchesCategory;
         })
         .sort((a, b) => {
-            const categoryOrder = categories.indexOf(a.category);
-            const categoryOrderB = categories.indexOf(b.category);
-
-            if (categoryOrder !== categoryOrderB) {
-                return categoryOrder - categoryOrderB;
-            }
-
-            return a.name.localeCompare(b.name);
+            const ca = CATEGORIES.indexOf(a.category);
+            const cb = CATEGORIES.indexOf(b.category);
+            return ca !== cb ? ca - cb : a.name.localeCompare(b.name);
         });
 
     return (
         <div className="pos-page">
-            <h1>Point of Sale</h1>
-
-            <div className="pos-layout">
-                {/* PRODUCTS */}
-                <div className="pos-section">
-                    <h2>Products</h2>
-
-                    <div className="product-controls">
-                        <input
-                            type="text"
-                            className="search-input"
-                            placeholder="Search products..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-
-                        <select
-                            className="category-select"
-                            value={selectedCategory}
-                            onChange={(e) =>
-                                setSelectedCategory(e.target.value)
-                            }
-                        >
-                            {categories.map((category) => (
-                                <option key={category} value={category}>
-                                    {category}
-                                </option>
-                            ))}
-                        </select>
+            {/* ============ LEFT: ORDER ============ */}
+            <section className="cart-panel">
+                <header className="cart-header">
+                    <div>
+                        <h2>Current Order</h2>
+                        <span className="cart-sub">
+                            {itemCount} item{itemCount === 1 ? "" : "s"}
+                        </span>
                     </div>
+                    <button
+                        className="btn-ghost"
+                        onClick={clearCart}
+                        disabled={cart.length === 0}
+                    >
+                        Clear
+                    </button>
+                </header>
 
-                    {filteredProducts.length === 0 ? (
-                        <p className="no-products">No products found.</p>
-                    ) : (
-                        <div className="products-list">
-                            {filteredProducts.map((product) => (
-                                <div
-                                    className="pos-product"
-                                    key={product._id}
-                                >
-                                    <div className="product-info">
-                                        <strong>{product.name}</strong>
-                                        <span>{product.category}</span>
-                                        <span>
-                                            ₱{Number(product.price).toFixed(2)}
-                                        </span>
-                                    </div>
-
-                                    <button onClick={() => addToCart(product)}>
-                                        Add
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                <div className="cart-table-head">
+                    <span>Item</span>
+                    <span>Qty</span>
+                    <span>Total</span>
                 </div>
 
-                {/* CART */}
-                <div className="pos-section">
-                    <h2>Cart</h2>
-
+                <div className="cart-items">
                     {cart.length === 0 ? (
-                        <p>Your cart is empty.</p>
+                        <p className="cart-empty">
+                            Tap a product to add it to the order.
+                        </p>
                     ) : (
-                        cart.map((product, index) => (
-                            <div className="cart-item" key={index}>
-                                <div className="cart-item-info">
-                                    <span>{product.name}</span>
-                                    <span>
-                                        ₱{Number(product.price).toFixed(2)}
-                                    </span>
+                        cart.map((item) => (
+                            <div className="cart-row" key={item._id}>
+                                <div className="cart-row-name">
+                                    <strong>{item.name}</strong>
+                                    <span>{peso(item.price)}</span>
                                 </div>
 
-                                <button
-                                    className="remove-button"
-                                    onClick={() => removeFromCart(index)}
-                                >
-                                    Remove
-                                </button>
+                                <div className="qty-control">
+                                    <button
+                                        onClick={() =>
+                                            changeQuantity(item._id, -1)
+                                        }
+                                        aria-label={`Decrease ${item.name}`}
+                                    >
+                                        −
+                                    </button>
+                                    <span>{item.quantity}</span>
+                                    <button
+                                        onClick={() =>
+                                            changeQuantity(item._id, 1)
+                                        }
+                                        aria-label={`Increase ${item.name}`}
+                                    >
+                                        +
+                                    </button>
+                                </div>
+
+                                <strong className="cart-row-total">
+                                    {peso(item.price * item.quantity)}
+                                </strong>
                             </div>
                         ))
                     )}
+                </div>
 
-                    <p className="total">
-                        Total: ₱{total.toFixed(2)}
-                    </p>
+                <footer className="cart-footer">
+                    <div className="summary-line total-line">
+                        <span>Total</span>
+                        <span>{peso(total)}</span>
+                    </div>
+
+                    <div className="quick-cash">
+                        <button
+                            onClick={() => setAmountPaid(total.toFixed(2))}
+                            disabled={total === 0}
+                        >
+                            Exact
+                        </button>
+                        {QUICK_CASH.map((amt) => (
+                            <button
+                                key={amt}
+                                onClick={() => setAmountPaid(String(amt))}
+                            >
+                                ₱{amt}
+                            </button>
+                        ))}
+                    </div>
 
                     <input
                         className="payment-input"
@@ -248,29 +273,87 @@ function POS() {
                         onChange={(e) => setAmountPaid(e.target.value)}
                     />
 
-                    <p className="change">
-                        Change: ₱{change.toFixed(2)}
-                    </p>
+                    <div className="summary-line">
+                        <span>Change</span>
+                        <span>{peso(change)}</span>
+                    </div>
 
                     <button
-                        className="checkout-button"
+                        className="pay-button"
                         onClick={openConfirmation}
                         disabled={cart.length === 0 || isSubmitting}
                     >
-                        Checkout
+                        Charge {peso(total)}
                     </button>
-                </div>
-            </div>
+                </footer>
+            </section>
 
-            {/* CHECKOUT CONFIRMATION */}
+            {/* ============ RIGHT: CATALOG ============ */}
+            <section className="catalog-panel">
+                <div className="catalog-toolbar">
+                    <input
+                        type="text"
+                        className="search-input"
+                        placeholder="Search products..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+
+                <div className="category-tabs">
+                    {CATEGORIES.map((cat) => (
+                        <button
+                            key={cat}
+                            className={
+                                cat === selectedCategory
+                                    ? "category-tab active"
+                                    : "category-tab"
+                            }
+                            onClick={() => setSelectedCategory(cat)}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+
+                {filteredProducts.length === 0 ? (
+                    <p className="no-products">No products found.</p>
+                ) : (
+                    <div className="product-grid">
+                        {filteredProducts.map((product) => (
+                            <button
+                                className="product-card"
+                                key={product._id}
+                                onClick={() => addToCart(product)}
+                            >
+                                <div className="product-media">
+                                    <ProductImage product={product} />
+                                    {quantityInCart[product._id] > 0 && (
+                                        <span className="in-cart-badge">
+                                            {quantityInCart[product._id]}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="product-body">
+                                    <span className="product-name">
+                                        {product.name}
+                                    </span>
+                                    <span className="product-price">
+                                        {peso(product.price)}
+                                    </span>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            {/* ============ CONFIRM MODAL ============ */}
             {showConfirmation && (
                 <div
                     className="confirmation-overlay"
                     onClick={(e) => {
-                        if (
-                            e.target === e.currentTarget &&
-                            !isSubmitting
-                        ) {
+                        if (e.target === e.currentTarget && !isSubmitting) {
                             setShowConfirmation(false);
                         }
                     }}
@@ -281,73 +364,46 @@ function POS() {
                         aria-modal="true"
                         aria-labelledby="confirmation-title"
                     >
-                        <h2 id="confirmation-title">
-                            Confirm Checkout
-                        </h2>
-
-                        <p className="confirmation-subtitle">
-                            Review your order before completing the transaction.
-                        </p>
+                        <h2 id="confirmation-title">Confirm Checkout</h2>
 
                         <div className="confirmation-items">
-                            {cart.map((product, index) => (
-                                <div
-                                    className="confirmation-item"
-                                    key={`${product._id}-${index}`}
-                                >
-                                    <div className="confirmation-product-info">
-                                        <strong>{product.name}</strong>
+                            {cart.map((i) => (
+                                <div className="confirmation-item" key={i._id}>
+                                    <div>
+                                        <strong>{i.name}</strong>
                                         <span>
-                                            ₱{Number(product.price).toFixed(2)} × 1
+                                            {peso(i.price)} × {i.quantity}
                                         </span>
                                     </div>
-
-                                    <strong>
-                                        ₱{Number(product.price).toFixed(2)}
-                                    </strong>
+                                    <strong>{peso(i.price * i.quantity)}</strong>
                                 </div>
                             ))}
                         </div>
 
                         <div className="confirmation-summary">
                             <div>
-                                <span>Number of items</span>
-                                <span>{cart.length}</span>
-                            </div>
-
-                            <div>
-                                <span>Subtotal</span>
-                                <span>₱{total.toFixed(2)}</span>
-                            </div>
-
-                            <div>
                                 <span>Amount paid</span>
-                                <span>₱{paid.toFixed(2)}</span>
+                                <span>{peso(paid)}</span>
                             </div>
-
-                            <div className="confirmation-change">
+                            <div>
                                 <span>Change</span>
-                                <span>₱{change.toFixed(2)}</span>
+                                <span>{peso(change)}</span>
                             </div>
-
                             <div className="confirmation-total">
-                                <strong>Total Cost</strong>
-                                <strong>₱{total.toFixed(2)}</strong>
+                                <strong>Total</strong>
+                                <strong>{peso(total)}</strong>
                             </div>
                         </div>
 
                         <div className="confirmation-actions">
                             <button
-                                type="button"
                                 className="cancel-button"
                                 onClick={() => setShowConfirmation(false)}
                                 disabled={isSubmitting}
                             >
-                                Back to Cart
+                                Back
                             </button>
-
                             <button
-                                type="button"
                                 className="confirm-button"
                                 onClick={checkout}
                                 disabled={isSubmitting}

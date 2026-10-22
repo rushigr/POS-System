@@ -18,6 +18,7 @@ function Products() {
     const [name, setName] = useState("");
     const [category, setCategory] = useState("Ramen");
     const [price, setPrice] = useState("");
+    const [image, setImage] = useState("");
 
     const [editingId, setEditingId] = useState(null);
 
@@ -40,6 +41,17 @@ function Products() {
         loadProducts();
     }, [navigate]);
 
+    // The server's adminOnly middleware reads this header.
+    const authHeaders = () => {
+        const savedUser = localStorage.getItem("user");
+        const user = savedUser ? JSON.parse(savedUser) : null;
+
+        return {
+            "Content-Type": "application/json",
+            "x-username": user?.username || ""
+        };
+    };
+
     const loadProducts = async () => {
         try {
             const response = await fetch(
@@ -61,7 +73,8 @@ function Products() {
             const productData = {
                 name,
                 category,
-                price: Number(price)
+                price: Number(price),
+                image: image.trim()
             };
 
             let response;
@@ -72,9 +85,7 @@ function Products() {
                     `${API_URL}/api/products/${editingId}`,
                     {
                         method: "PUT",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
+                        headers: authHeaders(),
                         body: JSON.stringify(productData)
                     }
                 );
@@ -84,9 +95,7 @@ function Products() {
                     `${API_URL}/api/products`,
                     {
                         method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
+                        headers: authHeaders(),
                         body: JSON.stringify(productData)
                     }
                 );
@@ -110,6 +119,7 @@ function Products() {
         setName(product.name);
         setCategory(product.category);
         setPrice(product.price);
+        setImage(product.image || "");
     };
 
     const deleteProduct = async (id) => {
@@ -123,9 +133,10 @@ function Products() {
 
         try {
             const response = await fetch(
-                `${API_URL}api/products/${id}`,
+                `${API_URL}/api/products/${id}`,
                 {
-                    method: "DELETE"
+                    method: "DELETE",
+                    headers: authHeaders()
                 }
             );
 
@@ -146,6 +157,7 @@ function Products() {
         setName("");
         setCategory("Ramen");
         setPrice("");
+        setImage("");
     };
 
     return (
@@ -205,6 +217,15 @@ function Products() {
                         required
                     />
 
+                    <input
+                        type="url"
+                        placeholder="Image URL (optional)"
+                        value={image}
+                        onChange={(e) =>
+                            setImage(e.target.value)
+                        }
+                    />
+
                     <button type="submit">
                         {editingId
                             ? "Update Product"
@@ -237,6 +258,18 @@ function Products() {
                             className="product-card"
                             key={product._id}
                         >
+                            {product.image && (
+                                <img
+                                    className="product-thumb"
+                                    src={product.image}
+                                    alt={product.name}
+                                    onError={(e) => {
+                                        e.currentTarget.style.display =
+                                            "none";
+                                    }}
+                                />
+                            )}
+
                             <h3>{product.name}</h3>
 
                             <p>
