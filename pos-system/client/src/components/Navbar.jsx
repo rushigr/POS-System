@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     Link,
     useLocation,
@@ -8,24 +8,34 @@ import {
 import API_URL from "../api";
 import "./Navbar.css";
 
+function readStoredUser() {
+    try {
+        return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+        return null;
+    }
+}
+
 function Navbar() {
     const location = useLocation();
     const navigate = useNavigate();
-
-    const savedUser = localStorage.getItem("user");
-    let user = null;
-
-    try {
-        user = savedUser ? JSON.parse(savedUser) : null;
-    } catch {
-        user = null;
-    }
+    const user = readStoredUser();
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const stopHeartbeatRef = useRef(null);
     const heartbeatPromiseRef = useRef(null);
     const userId = user?.id;
     const username = user?.username;
     const storedSessionId = user?.sessionId;
+    const isAdmin = user?.role === "admin";
+    const isCashier = user?.role === "cashier";
+    const roleLabel = isAdmin ? "Admin" : isCashier ? "Cashier" : "User";
+    const homePath = isCashier ? "/pos" : "/dashboard";
+
+    // Close the mobile menu after navigating to another page.
+    useEffect(() => {
+        setMenuOpen(false);
+    }, [location.pathname]);
 
     // Keep the session alive while this signed-in browser is active. If a
     // browser closes unexpectedly, the backend marks it offline after timeout.
@@ -39,14 +49,9 @@ function Navbar() {
         const sendHeartbeat = () => {
             if (stopped || inFlight) return heartbeatPromiseRef.current;
 
-            let currentUser;
-            try {
-                currentUser = JSON.parse(localStorage.getItem("user") || "null");
-            } catch {
-                currentUser = null;
-            }
-
+            const currentUser = readStoredUser();
             if (!currentUser?.username) return null;
+
             sessionId = currentUser.sessionId || sessionId;
             inFlight = true;
 
@@ -66,14 +71,7 @@ function Navbar() {
 
                     if (data.sessionId) {
                         sessionId = data.sessionId;
-                        let latestUser;
-                        try {
-                            latestUser = JSON.parse(
-                                localStorage.getItem("user") || "null"
-                            );
-                        } catch {
-                            latestUser = null;
-                        }
+                        const latestUser = readStoredUser();
 
                         if (latestUser?.username === currentUser.username) {
                             localStorage.setItem(
@@ -110,8 +108,7 @@ function Navbar() {
             clearInterval(intervalId);
             if (stopHeartbeatRef.current) stopHeartbeatRef.current = null;
         };
-        // Username/ID identify the current login; session ID may be refreshed
-        // inside this effect after an inactivity timeout.
+        // Username/ID identify the current login; session ID can refresh after inactivity.
     }, [userId, username, storedSessionId]);
 
     const handleLogout = async () => {
@@ -129,12 +126,7 @@ function Navbar() {
             // Continue with local logout even if the heartbeat failed.
         }
 
-        let currentUser = null;
-        try {
-            currentUser = JSON.parse(localStorage.getItem("user") || "null");
-        } catch {
-            currentUser = null;
-        }
+        const currentUser = readStoredUser();
 
         try {
             if (currentUser?.username && currentUser?.sessionId) {
@@ -152,114 +144,95 @@ function Navbar() {
             // Local logout should still work if the backend is unreachable.
         } finally {
             localStorage.removeItem("user");
-            navigate("/");
+            navigate("/", { replace: true });
         }
     };
 
-    return (
-        <nav className="navbar">
+    const linkClass = (path) =>
+        location.pathname === path ? "nav-link active" : "nav-link";
 
-            <div className="navbar-brand">
-                <Link to="/dashboard">
-                    Houdo Ramen
-                </Link>
+    return (
+        <nav className={`navbar${menuOpen ? " menu-open" : ""}`}>
+            <div className="navbar-topbar">
+                <div className="navbar-brand">
+                    <Link to={homePath} aria-label="Houdo Ramen home">
+                        <span className="navbar-brand-mark" aria-hidden="true">H</span>
+                        <span className="navbar-brand-text">
+                            <strong>Houdo Ramen</strong>
+                            <small>POINT OF SALE</small>
+                        </span>
+                    </Link>
+                </div>
+
+                {user && (
+                    <div className="navbar-account" title={`${roleLabel}: ${user.username}`}>
+                        <span className="navbar-account-avatar" aria-hidden="true">
+                            {(user.username || roleLabel).slice(0, 1).toUpperCase()}
+                        </span>
+                        <span className="navbar-account-copy">
+                            <span className="navbar-account-role">{roleLabel}</span>
+                            <strong className="navbar-account-name">{user.username}</strong>
+                        </span>
+                    </div>
+                )}
+
+                <button
+                    type="button"
+                    className="navbar-menu-toggle"
+                    onClick={() => setMenuOpen((open) => !open)}
+                    aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+                    aria-expanded={menuOpen}
+                    aria-controls="main-navigation-links"
+                >
+                    <span className="navbar-menu-icon" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                    </span>
+                </button>
             </div>
 
-            <div className="navbar-links">
-
-                {/* Dashboard */}
-                <Link
-                    to="/dashboard"
-                    className={
-                        location.pathname === "/dashboard"
-                            ? "nav-link active"
-                            : "nav-link"
-                    }
-                >
-                    Dashboard
-                </Link>
-
-                {/* POS */}
-                <Link
-                    to="/pos"
-                    className={
-                        location.pathname === "/pos"
-                            ? "nav-link active"
-                            : "nav-link"
-                    }
-                >
-                    POS
-                </Link>
-
-                {/* Products - ADMIN ONLY */}
-                {user?.role === "admin" && (
-                    <Link
-                        to="/products"
-                        className={
-                            location.pathname === "/products"
-                                ? "nav-link active"
-                                : "nav-link"
-                        }
-                    >
-                        Products
+            <div
+                id="main-navigation-links"
+                className={`navbar-links${menuOpen ? " is-open" : ""}`}
+            >
+                {/* Cashiers deliberately see POS only. */}
+                {isAdmin && (
+                    <Link to="/dashboard" className={linkClass("/dashboard")}>
+                        Dashboard
                     </Link>
                 )}
 
-                {/* Transactions */}
-                <Link
-                    to="/transactions"
-                    className={
-                        location.pathname === "/transactions"
-                            ? "nav-link active"
-                            : "nav-link"
-                    }
-                >
-                    Transactions
-                </Link>
-
-                {/* Users */}
-                {user?.role === "admin" && (
-                    <Link
-                        to="/users"
-                        className={
-                            location.pathname === "/users"
-                                ? "nav-link active"
-                                : "nav-link"
-                        }
-                    >
-                        Users
+                {(isAdmin || isCashier) && (
+                    <Link to="/pos" className={linkClass("/pos")}>
+                        POS
                     </Link>
                 )}
 
-                {/* Audit Log - ADMIN ONLY */}
-                {user?.role === "admin" && (
-                    <Link
-                        to="/audit"
-                        className={
-                            location.pathname === "/audit"
-                                ? "nav-link active"
-                                : "nav-link"
-                        }
-                    >
-                        Audit Log
-                    </Link>
+                {isAdmin && (
+                    <>
+                        <Link to="/products" className={linkClass("/products")}>
+                            Products
+                        </Link>
+                        <Link to="/transactions" className={linkClass("/transactions")}>
+                            Transactions
+                        </Link>
+                        <Link to="/users" className={linkClass("/users")}>
+                            Users
+                        </Link>
+                        <Link to="/audit" className={linkClass("/audit")}>
+                            Audit Log
+                        </Link>
+                    </>
                 )}
 
-                {/* Current User */}
-                {user && (
-                    <span className="navbar-username">
-                        {user.username}
-                    </span>
-                )}
-
-                {/* Logout */}
                 <button
+                    type="button"
                     className="logout-button"
                     onClick={handleLogout}
                 >
-                    Logout
+                    Log out
                 </button>
-
             </div>
         </nav>
     );

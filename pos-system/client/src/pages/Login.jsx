@@ -11,10 +11,17 @@ function Login() {
 
     const navigate = useNavigate();
 
-    // Already signed in on this device: skip the login form.
+    // Already signed in on this device: route each role to its home page.
     useEffect(() => {
-        if (localStorage.getItem("user")) {
-            navigate("/dashboard", { replace: true });
+        try {
+            const savedUser = JSON.parse(localStorage.getItem("user") || "null");
+            if (savedUser?.role === "admin") {
+                navigate("/dashboard", { replace: true });
+            } else if (savedUser?.role === "cashier") {
+                navigate("/pos", { replace: true });
+            }
+        } catch {
+            localStorage.removeItem("user");
         }
     }, [navigate]);
 
@@ -52,7 +59,7 @@ function Login() {
                 JSON.stringify(data.user)
             );
 
-            navigate("/dashboard");
+            navigate(data.user?.role === "cashier" ? "/pos" : "/dashboard", { replace: true });
 
         } catch (error) {
             console.error(error);
