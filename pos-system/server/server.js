@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -10,6 +9,7 @@ const productRoutes = require("./routes/productRoutes");
 const authRoutes = require("./routes/authRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const userRoutes = require("./routes/userRoutes");
+const auditRoutes = require("./routes/auditRoutes");
 
 const app = express();
 
@@ -37,6 +37,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/audit", auditRoutes);
 
 const PORT = process.env.PORT || 5000;
 

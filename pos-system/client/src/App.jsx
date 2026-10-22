@@ -9,6 +9,7 @@ import POS from "./pages/POS";
 import Products from "./pages/Products";
 import Transactions from "./pages/Transactions";
 import Users from "./pages/Users";
+import AuditLog from "./pages/AuditLog";
 
 function AppContent() {
     const location = useLocation();
@@ -29,6 +30,7 @@ function AppContent() {
                     element={<Transactions />}
                 />
                 <Route path="/users" element={<Users />} />
+                <Route path="/audit" element={<AuditLog />} />
             </Routes>
         </>
     );

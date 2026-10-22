@@ -96,6 +96,20 @@ function Navbar() {
                     </Link>
                 )}
 
+                {/* Audit Log - ADMIN ONLY */}
+                {user?.role === "admin" && (
+                    <Link
+                        to="/audit"
+                        className={
+                            location.pathname === "/audit"
+                                ? "nav-link active"
+                                : "nav-link"
+                        }
+                    >
+                        Audit Log
+                    </Link>
+                )}
+
                 {/* Current User */}
                 {user && (
                     <span className="navbar-username">

@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const adminOnly = require("../middleware/adminMiddleware");
+const { logAudit, diffFields } = require("../utils/audit");
 
 const router = express.Router();
 
@@ -46,6 +47,17 @@ router.post("/", adminOnly, async (req, res) => {
             username: username.trim(),
             password,
             role
+        });
+
+        await logAudit(req, {
+            action: "USER_CREATE",
+            entityType: "User",
+            entityId: user._id,
+            entityName: user.username,
+            changes: [
+                { field: "username", from: null, to: user.username },
+                { field: "role", from: null, to: user.role }
+            ]
         });
 
         res.status(201).json({
@@ -105,6 +117,8 @@ router.put("/:id", adminOnly, async (req, res) => {
             });
         }
 
+        const before = { username: user.username, role: user.role };
+
         user.username = username.trim();
         user.role = role;
 
@@ -114,6 +128,27 @@ router.put("/:id", adminOnly, async (req, res) => {
         }
 
         await user.save();
+
+        const changes = diffFields(
+            before,
+            { username: user.username, role: user.role },
+            ["username", "role"]
+        );
+
+        // record THAT the password changed, never the value
+        if (password?.trim()) {
+            changes.push({ field: "password", from: "[hidden]", to: "[changed]" });
+        }
+
+        if (changes.length > 0) {
+            await logAudit(req, {
+                action: "USER_UPDATE",
+                entityType: "User",
+                entityId: user._id,
+                entityName: user.username,
+                changes
+            });
+        }
 
         res.json({
             message: "User updated successfully",
@@ -163,6 +198,17 @@ router.delete("/:id", adminOnly, async (req, res) => {
                 message: "User not found"
             });
         }
+
+        await logAudit(req, {
+            action: "USER_DELETE",
+            entityType: "User",
+            entityId: user._id,
+            entityName: user.username,
+            changes: [
+                { field: "username", from: user.username, to: null },
+                { field: "role", from: user.role, to: null }
+            ]
+        });
 
         res.json({
             message: "User deleted successfully"

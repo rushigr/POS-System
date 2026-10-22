@@ -24,6 +24,9 @@ const adminOnly = async (req, res, next) => {
             });
         }
 
+        // make the acting admin available to route handlers (audit log)
+        req.user = { id: user._id, username: user.username, role: user.role };
+
         next();
 
     } catch (error) {
