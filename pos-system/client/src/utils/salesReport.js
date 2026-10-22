@@ -5,7 +5,7 @@ const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const UNIT = { year: "year", month: "month", week: "week", day: "day" };
+export const UNIT = { year: "year", month: "month", week: "week", day: "day", custom: "period" };
 
 export const currency = (value) =>
     `₱${Number(value || 0).toLocaleString("en-PH", {
@@ -58,6 +58,9 @@ export const shortDate = (d) => `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
 const longDate = (d) =>
     d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
+const mediumDate = (d) =>
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
 const hourLabel = (h) => `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`;
 
 /* ---------- ranges ---------- */
@@ -77,7 +80,12 @@ export function getRange(mode, anchor) {
     return [s, addDays(s, 1)];
 }
 
-export function getPreviousRange(mode, [start]) {
+export function getPreviousRange(mode, [start, end]) {
+    // Custom: the same number of days immediately before the chosen period.
+    if (mode === "custom") {
+        const days = Math.max(1, Math.round((end - start) / DAY_MS));
+        return [addDays(start, -days), start];
+    }
     if (mode === "year") return [new Date(start.getFullYear() - 1, 0, 1), start];
     if (mode === "month") return [new Date(start.getFullYear(), start.getMonth() - 1, 1), start];
     if (mode === "week") return [addDays(start, -7), start];
@@ -92,6 +100,12 @@ export function shiftAnchor(mode, anchor, direction) {
 }
 
 export function rangeName(mode, [start, end]) {
+    if (mode === "custom") {
+        const last = addDays(end, -1);
+        return startOfDay(start).getTime() === startOfDay(last).getTime()
+            ? longDate(start)
+            : `${mediumDate(start)} – ${mediumDate(last)}`;
+    }
     if (mode === "year") return String(start.getFullYear());
     if (mode === "month") {
         return start.toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -146,7 +160,22 @@ export function rankProducts(txns) {
         );
 }
 
-function bucketIndex(mode, date, start) {
+// A custom period is charted per day up to ~2 months, per month beyond that.
+const CUSTOM_DAILY_MAX_DAYS = 62;
+
+export function customGranularity([start, end]) {
+    const days = Math.round((end - start) / DAY_MS);
+    return days <= CUSTOM_DAILY_MAX_DAYS ? "day" : "month";
+}
+
+function bucketIndex(mode, date, start, granularity) {
+    if (mode === "custom") {
+        if (granularity === "day") return Math.round((startOfDay(date) - start) / DAY_MS);
+        return (
+            (date.getFullYear() - start.getFullYear()) * 12 +
+            (date.getMonth() - start.getMonth())
+        );
+    }
     if (mode === "year") return date.getMonth();
     if (mode === "month") return date.getDate() - 1;
     if (mode === "week") return Math.round((startOfDay(date) - start) / DAY_MS);
@@ -154,12 +183,39 @@ function bucketIndex(mode, date, start) {
 }
 
 // One bar per month (year), day (month / week) or hour (day).
-export function buildBuckets(mode, txns, [start]) {
+export function buildBuckets(mode, txns, range) {
+    const [start, end] = range;
     const y = start.getFullYear();
     const m = start.getMonth();
+    const granularity = mode === "custom" ? customGranularity(range) : null;
     let buckets;
 
-    if (mode === "year") {
+    if (mode === "custom" && granularity === "day") {
+        const days = Math.round((end - start) / DAY_MS);
+        buckets = Array.from({ length: days }, (_, i) => {
+            const d = addDays(start, i);
+            return { label: shortDate(d), full: longDate(d) };
+        });
+    } else if (mode === "custom") {
+        // one bar per calendar month, first and last month may be partial
+        buckets = [];
+        let cursor = start;
+        while (cursor < end) {
+            const nextMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+            const stop = nextMonth < end ? nextMonth : end;
+            const name = cursor.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+            const partial =
+                cursor.getDate() !== 1 || stop.getTime() !== nextMonth.getTime();
+
+            buckets.push({
+                label: `${MONTHS_SHORT[cursor.getMonth()]} ${cursor.getFullYear()}`,
+                full: partial
+                    ? `${name} (${shortDate(cursor)} – ${shortDate(addDays(stop, -1))})`
+                    : name
+            });
+            cursor = stop;
+        }
+    } else if (mode === "year") {
         buckets = Array.from({ length: 12 }, (_, i) => ({
             label: MONTHS_SHORT[i],
             full: new Date(y, i, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })
@@ -186,7 +242,7 @@ export function buildBuckets(mode, txns, [start]) {
     buckets = buckets.map((b) => ({ ...b, sales: 0, count: 0 }));
 
     txns.forEach((t) => {
-        const bucket = buckets[bucketIndex(mode, t.date, start)];
+        const bucket = buckets[bucketIndex(mode, t.date, start, granularity)];
         if (bucket) {
             bucket.sales += Number(t.total) || 0;
             bucket.count += 1;
@@ -255,10 +311,37 @@ export function bestSellerRows(segments, parsed) {
     });
 }
 
+// Best-seller rows for a custom period: Mon–Sun weeks or calendar months,
+// clipped to the period so the rows add up to the period total.
+export function customSegments([start, end], by) {
+    const segments = [];
+    let cursor = start;
+
+    while (cursor < end) {
+        const boundary =
+            by === "week"
+                ? addDays(startOfWeek(cursor), 7)
+                : new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+        const stop = boundary < end ? boundary : end;
+
+        segments.push({
+            label:
+                by === "week"
+                    ? `Week ${segments.length + 1}`
+                    : cursor.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+            dates: `${mediumDate(cursor)} – ${mediumDate(addDays(stop, -1))}`,
+            start: cursor,
+            end: stop
+        });
+        cursor = stop;
+    }
+    return segments;
+}
+
 /* ---------- summary statements ---------- */
 
 // Each statement is a list of parts: plain strings, or { b: "bold text" }.
-function buildSummary({ mode, name, prevName, totals, prevTotals, bestBucket, activeDays, ranked, inProgress }) {
+function buildSummary({ mode, name, prevName, totals, prevTotals, bestBucket, bestLabel, activeDays, ranked, inProgress }) {
     const unit = UNIT[mode];
     const out = [];
     const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -311,7 +394,9 @@ function buildSummary({ mode, name, prevName, totals, prevTotals, bestBucket, ac
 
     // best month / day / hour inside the period
     if (bestBucket && bestBucket.sales > 0) {
-        const label = { year: "best month", month: "best day", week: "best day", day: "busiest hour" }[mode];
+        const label =
+            bestLabel ||
+            { year: "best month", month: "best day", week: "best day", day: "busiest hour" }[mode];
         const share = totals.sales > 0 ? (bestBucket.sales / totals.sales) * 100 : 0;
 
         out.push([
@@ -368,8 +453,9 @@ function buildSummary({ mode, name, prevName, totals, prevTotals, bestBucket, ac
 
 /* ---------- everything the dashboard needs for one period ---------- */
 
-export function analyzePeriod(mode, anchor, parsed, now = new Date()) {
-    const range = getRange(mode, anchor);
+// For mode "custom", pass the chosen [start, end) as `custom`.
+export function analyzePeriod(mode, anchor, parsed, now = new Date(), custom = null) {
+    const range = mode === "custom" && custom ? custom : getRange(mode === "custom" ? "month" : mode, anchor);
     const prevRange = getPreviousRange(mode, range);
 
     const inRange = ([s, e]) => parsed.filter((t) => t.date >= s && t.date < e);
@@ -390,8 +476,13 @@ export function analyzePeriod(mode, anchor, parsed, now = new Date()) {
     const inProgress = now >= range[0] && now < range[1];
     const name = rangeName(mode, range);
     const prevName = rangeName(mode, prevRange);
+    const bestLabel =
+        mode === "custom"
+            ? customGranularity(range) === "day" ? "best day" : "best month"
+            : null;
 
     return {
+        range,
         name,
         prevName,
         totals,
@@ -402,7 +493,7 @@ export function analyzePeriod(mode, anchor, parsed, now = new Date()) {
         inProgress,
         summary: buildSummary({
             mode, name, prevName, totals, prevTotals,
-            bestBucket, activeDays, ranked, inProgress
+            bestBucket, bestLabel, activeDays, ranked, inProgress
         })
     };
 }

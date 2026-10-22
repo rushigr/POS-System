@@ -51,6 +51,32 @@
 .dsh-today { font-size: 14px !important; background: #e2e8f0; color: #0f172a; }
 .dsh-today:hover { background: #cbd5e1; }
 
+/* ----- custom period ----- */
+.dsh-custom {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.dsh-custom-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+}
+.dsh-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.dsh-preset { font-size: 13px; background: #e2e8f0; color: #0f172a; }
+.dsh-preset:hover { background: #cbd5e1; }
+
+.dsh-range-note {
+    margin: -8px 0 18px;
+    color: #6b7280;
+    font-size: 14px;
+}
+.dsh-range-note strong { color: #111827; }
+
 /* ----- cards ----- */
 .dsh-cards {
     display: grid;
@@ -178,5 +204,6 @@
     .dsh-page { padding: 15px; }
     .dsh-controls { flex-direction: column; align-items: stretch; }
     .dsh-nav { justify-content: center; }
+    .dsh-custom { justify-content: center; }
     .dsh-chart { height: 280px; }
 }

@@ -53,6 +53,25 @@
 .txn-today { font-size: 14px !important; background: #e2e8f0; color: #0f172a; }
 .txn-today:hover { background: #cbd5e1; }
 
+/* ----- custom period ----- */
+.txn-custom {
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.txn-custom-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+}
+.txn-custom > button { padding: 9px 14px; font-size: 14px; }
+.txn-custom > button:disabled { opacity: 0.5; cursor: not-allowed; }
+.txn-custom-label { margin-left: auto; align-self: center; color: #111827; }
+
 /* ----- stats ----- */
 .txn-stats {
     display: grid;

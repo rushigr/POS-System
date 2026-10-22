@@ -52,8 +52,15 @@ const addDays = (d, n) => {
 
 const addMonths = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 
-// Returns [start, end) or [null, null] for "all".
-function getRange(mode, anchor) {
+// Returns [start, end) or [null, null] for "all". For "custom", either end
+// may be null (open-ended); `custom` holds yyyy-mm-dd strings, both inclusive.
+function getRange(mode, anchor, custom = { from: "", to: "" }) {
+    if (mode === "custom") {
+        return [
+            custom.from ? fromDateValue(custom.from) : null,
+            custom.to ? addDays(fromDateValue(custom.to), 1) : null
+        ];
+    }
     if (mode === "day") {
         const s = startOfDay(anchor);
         return [s, addDays(s, 1)];
@@ -69,8 +76,24 @@ function getRange(mode, anchor) {
     return [null, null];
 }
 
-function rangeLabel(mode, anchor) {
-    const [start, end] = getRange(mode, anchor);
+const fullDate = (d) =>
+    d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+
+function rangeLabel(mode, anchor, custom) {
+    const [start, end] = getRange(mode, anchor, custom);
+
+    if (mode === "custom") {
+        const last = end ? addDays(end, -1) : null;
+
+        if (start && last) {
+            return start.getTime() === last.getTime()
+                ? fullDate(start)
+                : `${fullDate(start)} – ${fullDate(last)}`;
+        }
+        if (start) return `From ${fullDate(start)}`;
+        if (last) return `Up to ${fullDate(last)}`;
+        return "All transactions";
+    }
 
     if (mode === "day") {
         return start.toLocaleDateString(undefined, {
@@ -215,6 +238,25 @@ function Transactions() {
     const [sort, setSort] = useState("newest");
     const [search, setSearch] = useState("");
 
+    // custom period (mode "custom"): yyyy-mm-dd, both inclusive, either may be empty
+    const [customFrom, setCustomFrom] = useState("");
+    const [customTo, setCustomTo] = useState("");
+
+    const changeFrom = (value) => {
+        setCustomFrom(value);
+        if (value && customTo && value > customTo) setCustomTo(value);
+    };
+
+    const changeTo = (value) => {
+        setCustomTo(value);
+        if (value && customFrom && value < customFrom) setCustomFrom(value);
+    };
+
+    const custom = useMemo(
+        () => ({ from: customFrom, to: customTo }),
+        [customFrom, customTo]
+    );
+
     const [openIds, setOpenIds] = useState(() => new Set());
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
@@ -250,17 +292,18 @@ function Transactions() {
     // Start from the first page whenever the view changes.
     useEffect(() => {
         setVisibleCount(PAGE_SIZE);
-    }, [mode, anchor, sort, search]);
+    }, [mode, anchor, sort, search, customFrom, customTo]);
 
     /* ----- filter + sort ----- */
 
     const filtered = useMemo(() => {
-        const [start, end] = getRange(mode, anchor);
+        const [start, end] = getRange(mode, anchor, custom);
         const term = search.trim().toLowerCase();
 
         const list = transactions.filter((t) => {
             const when = new Date(t.createdAt);
-            if (start && (when < start || when >= end)) return false;
+            if (start && when < start) return false;
+            if (end && when >= end) return false;
 
             if (term) {
                 const haystack = `${t.transactionNumber} ${t.cashier}`.toLowerCase();
@@ -277,7 +320,7 @@ function Transactions() {
         });
 
         return list;
-    }, [transactions, mode, anchor, sort, search]);
+    }, [transactions, mode, anchor, sort, search, custom]);
 
     // Voided transactions stay in the list but never count toward sales.
     const stats = useMemo(() => {
@@ -393,7 +436,8 @@ function Transactions() {
         ["all", "All"],
         ["day", "Day"],
         ["week", "Week"],
-        ["month", "Month"]
+        ["month", "Month"],
+        ["custom", "Custom"]
     ];
 
     return (
@@ -437,12 +481,54 @@ function Transactions() {
                     </select>
                 </div>
 
-                {mode !== "all" && (
+                {mode === "custom" && (
+                    <div className="txn-custom">
+                        <label className="txn-custom-field">
+                            <span>From</span>
+                            <input
+                                type="date"
+                                value={customFrom}
+                                max={customTo || undefined}
+                                onChange={(e) => changeFrom(e.target.value)}
+                                aria-label="Start date"
+                            />
+                        </label>
+
+                        <label className="txn-custom-field">
+                            <span>To</span>
+                            <input
+                                type="date"
+                                value={customTo}
+                                min={customFrom || undefined}
+                                onChange={(e) => changeTo(e.target.value)}
+                                aria-label="End date"
+                            />
+                        </label>
+
+                        <button
+                            type="button"
+                            className="txn-today"
+                            onClick={() => {
+                                setCustomFrom("");
+                                setCustomTo("");
+                            }}
+                            disabled={!customFrom && !customTo}
+                        >
+                            Clear
+                        </button>
+
+                        <strong className="txn-custom-label">
+                            {rangeLabel(mode, anchor, custom)}
+                        </strong>
+                    </div>
+                )}
+
+                {mode !== "all" && mode !== "custom" && (
                     <div className="txn-period-nav">
                         <button onClick={() => shift(-1)} aria-label="Previous">‹</button>
 
                         <div className="txn-period-label">
-                            <strong>{rangeLabel(mode, anchor)}</strong>
+                            <strong>{rangeLabel(mode, anchor, custom)}</strong>
 
                             {mode === "month" ? (
                                 <input

@@ -13,10 +13,13 @@ import "./Dashboard.css";
 
 import API_URL from "../api";
 import {
+    addDays,
     addMonths,
     analyzePeriod,
     bestSellerRows,
     currency,
+    customGranularity,
+    customSegments,
     fromDateValue,
     fromMonthValue,
     monthSegments,
@@ -30,7 +33,16 @@ const MODES = [
     ["year", "Year"],
     ["month", "Month"],
     ["week", "Week"],
-    ["day", "Day"]
+    ["day", "Day"],
+    ["custom", "Custom"]
+];
+
+// Quick picks for the custom period. `to` is always today.
+const PRESETS = [
+    ["Last 7 days", (today) => addDays(today, -6)],
+    ["Last 30 days", (today) => addDays(today, -29)],
+    ["Last 90 days", (today) => addDays(today, -89)],
+    ["Year to date", (today) => new Date(today.getFullYear(), 0, 1)]
 ];
 
 const compact = new Intl.NumberFormat("en-PH", {
@@ -42,7 +54,8 @@ const CHART_TITLES = {
     year: "Sales by Month",
     month: "Sales by Day",
     week: "Sales by Day of the Week",
-    day: "Sales by Hour"
+    day: "Sales by Hour",
+    custom: "Sales by Day"
 };
 
 function Dashboard() {
@@ -54,6 +67,36 @@ function Dashboard() {
     const [mode, setMode] = useState("month"); // year | month | week | day
     const [anchor, setAnchor] = useState(() => new Date());
     const [bestBy, setBestBy] = useState("week"); // week | month
+
+    // custom period, as yyyy-mm-dd strings (both ends inclusive)
+    const [customFrom, setCustomFrom] = useState(() =>
+        toDateValue(addDays(new Date(), -29))
+    );
+    const [customTo, setCustomTo] = useState(() => toDateValue(new Date()));
+
+    const changeFrom = (value) => {
+        if (!value) return;
+        setCustomFrom(value);
+        if (value > customTo) setCustomTo(value); // keep From <= To
+    };
+
+    const changeTo = (value) => {
+        if (!value) return;
+        setCustomTo(value);
+        if (value < customFrom) setCustomFrom(value);
+    };
+
+    const applyPreset = (startFn) => {
+        const today = new Date();
+        setCustomFrom(toDateValue(startFn(today)));
+        setCustomTo(toDateValue(today));
+    };
+
+    // [start, end) -- end is the day AFTER the chosen "To" date
+    const customRange = useMemo(
+        () => [fromDateValue(customFrom), addDays(fromDateValue(customTo), 1)],
+        [customFrom, customTo]
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -111,8 +154,15 @@ function Dashboard() {
     );
 
     const report = useMemo(
-        () => analyzePeriod(mode, anchor, parsed),
-        [mode, anchor, parsed]
+        () =>
+            analyzePeriod(
+                mode,
+                anchor,
+                parsed,
+                undefined,
+                mode === "custom" ? customRange : null
+            ),
+        [mode, anchor, parsed, customRange]
     );
 
     const topProducts = report.ranked.slice(0, 10);
@@ -132,6 +182,16 @@ function Dashboard() {
     }, [parsed, anchor]);
 
     const bestSellers = useMemo(() => {
+        if (mode === "custom") {
+            return {
+                subtitle:
+                    bestBy === "week"
+                        ? "Mon–Sun weeks inside the selected period, trimmed to its start and end dates."
+                        : "Calendar months inside the selected period, trimmed to its start and end dates.",
+                rows: bestSellerRows(customSegments(customRange, bestBy), parsed)
+            };
+        }
+
         const year = anchor.getFullYear();
         const month = anchor.getMonth();
 
@@ -148,7 +208,7 @@ function Dashboard() {
                     : `Every month of ${year}.`,
             rows: bestSellerRows(segments, parsed)
         };
-    }, [bestBy, anchor, parsed]);
+    }, [mode, bestBy, anchor, parsed, customRange]);
 
     const delta =
         report.prevTotals.sales > 0
@@ -186,6 +246,44 @@ function Dashboard() {
                     ))}
                 </div>
 
+                {mode === "custom" ? (
+                    <div className="dsh-custom">
+                        <label className="dsh-custom-field">
+                            <span>From</span>
+                            <input
+                                type="date"
+                                value={customFrom}
+                                max={customTo}
+                                onChange={(e) => changeFrom(e.target.value)}
+                                aria-label="Start date"
+                            />
+                        </label>
+
+                        <label className="dsh-custom-field">
+                            <span>To</span>
+                            <input
+                                type="date"
+                                value={customTo}
+                                min={customFrom}
+                                onChange={(e) => changeTo(e.target.value)}
+                                aria-label="End date"
+                            />
+                        </label>
+
+                        <div className="dsh-presets">
+                            {PRESETS.map(([label, startFn]) => (
+                                <button
+                                    key={label}
+                                    type="button"
+                                    className="dsh-preset"
+                                    onClick={() => applyPreset(startFn)}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
                 <div className="dsh-nav">
                     <button
                         onClick={() => setAnchor((a) => shiftAnchor(mode, a, -1))}
@@ -259,7 +357,14 @@ function Dashboard() {
                         Today
                     </button>
                 </div>
+                )}
             </div>
+
+            {mode === "custom" && (
+                <p className="dsh-range-note">
+                    Showing <strong>{report.name}</strong>
+                </p>
+            )}
 
             {error && <p className="dsh-error">{error}</p>}
 
@@ -329,7 +434,12 @@ function Dashboard() {
 
                     {/* ---------- sales chart ---------- */}
                     <section className="dsh-section">
-                        <h2>{CHART_TITLES[mode]}</h2>
+                        <h2>
+                            {mode === "custom" &&
+                            customGranularity(customRange) === "month"
+                                ? "Sales by Month"
+                                : CHART_TITLES[mode]}
+                        </h2>
                         <p className="dsh-description">
                             {report.name}
                             {report.bestBucket &&
@@ -347,7 +457,16 @@ function Dashboard() {
                                     <XAxis
                                         dataKey="label"
                                         tick={{ fontSize: 12 }}
-                                        interval={mode === "month" ? 1 : 0}
+                                        interval={
+                                            mode === "month"
+                                                ? 1
+                                                : mode === "custom"
+                                                  ? Math.max(
+                                                        0,
+                                                        Math.ceil(report.buckets.length / 15) - 1
+                                                    )
+                                                  : 0
+                                        }
                                     />
 
                                     <YAxis
@@ -496,7 +615,7 @@ function Dashboard() {
                                         >
                                             <td>
                                                 <strong>{row.label}</strong>
-                                                {bestBy === "week" && (
+                                                {(bestBy === "week" || mode === "custom") && (
                                                     <span className="dsh-dates">
                                                         {row.dates}
                                                     </span>
