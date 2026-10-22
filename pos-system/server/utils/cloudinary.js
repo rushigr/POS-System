@@ -39,7 +39,7 @@ function uploadImage(buffer) {
                 transformation: [
                     {
                         width: 800,
-                        height: 600,
+                        height: 800,
                         crop: "fill",
                         gravity: "auto",
                         quality: "auto"
