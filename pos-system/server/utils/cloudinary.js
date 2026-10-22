@@ -33,9 +33,17 @@ function uploadImage(buffer) {
             {
                 folder: FOLDER,
                 resource_type: "image",
-                // incoming transformation: cap the size and compress
+                // Every upload is cropped to exactly 800x600 (4:3, the same ratio
+                // the product cards use). gravity "auto" keeps the main subject
+                // (the bowl) in frame instead of blindly cropping the centre.
                 transformation: [
-                    { width: 800, height: 800, crop: "limit", quality: "auto" }
+                    {
+                        width: 800,
+                        height: 600,
+                        crop: "fill",
+                        gravity: "auto",
+                        quality: "auto"
+                    }
                 ]
             },
             (error, result) => {
