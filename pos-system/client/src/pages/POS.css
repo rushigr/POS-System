@@ -94,6 +94,77 @@
     white-space: nowrap;
 }
 .cart-row-name span { font-size: 12px; color: #64748b; }
+
+/* Item-level special instructions */
+.cart-line { border-bottom: 1px solid #f1f5f9; }
+.cart-line .cart-row { border-bottom: 0; }
+.cart-note-section { padding: 0 20px 12px; }
+.cart-note-toggle {
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+.cart-note-toggle:hover { color: #1d4ed8; text-decoration: underline; }
+.cart-note-preview {
+    margin: 0 0 4px;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.cart-note-preview strong { color: #334155; }
+.cart-note-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 10px;
+    border: 1px solid #bfdbfe;
+    border-radius: 9px;
+    background: #eff6ff;
+}
+.cart-note-editor label {
+    color: #1e3a8a;
+    font-size: 12px;
+    font-weight: 700;
+}
+.cart-note-editor textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 56px;
+    padding: 9px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 13px;
+}
+.cart-note-editor textarea:focus {
+    outline: 2px solid #93c5fd;
+    outline-offset: 1px;
+}
+.cart-note-editor-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #64748b;
+    font-size: 11px;
+}
+.cart-note-editor-footer button {
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+}
 .cart-row-total { text-align: right; font-size: 14px; }
 
 .qty-control {
@@ -405,6 +476,14 @@
 }
 .confirmation-item div { display: flex; flex-direction: column; }
 .confirmation-item span { font-size: 12px; color: #64748b; }
+.confirmation-item-note {
+    margin: 5px 0 0;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.confirmation-item-note strong { color: #334155; }
 .confirmation-summary { padding: 14px 0; display: flex; flex-direction: column; gap: 8px; }
 .confirmation-summary > div { display: flex; justify-content: space-between; }
 .confirmation-total { font-size: 20px; padding-top: 8px; border-top: 1px solid #e2e8f0; }
@@ -544,6 +623,9 @@
 
     .cart-items { flex: none; max-height: 28dvh; min-height: 72px; }
     .cart-row { padding-top: 10px; padding-bottom: 10px; }
+    .cart-note-section { padding: 0 14px 10px; }
+    .cart-note-toggle { min-height: 30px; }
+
     .cart-row-name strong { font-size: 15px; }
 
     /* bigger touch targets */

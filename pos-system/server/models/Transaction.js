@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 const transactionSchema = new mongoose.Schema({
@@ -28,6 +29,13 @@ const transactionSchema = new mongoose.Schema({
                 type: Number,
                 required: true,
                 min: 1
+            },
+
+            notes: {
+                type: String,
+                trim: true,
+                maxlength: 300,
+                default: ""
             }
         }
     ],
@@ -66,18 +74,31 @@ const transactionSchema = new mongoose.Schema({
         default: Date.now
     },
 
-    // Voiding keeps the record (for audit/reporting) but removes it from sales totals.
-    // Older documents have no status; treat a missing status as "completed".
+    // Voiding preserves the transaction record for auditing.
+    // Older records without a status are treated as completed.
     status: {
         type: String,
         enum: ["completed", "voided"],
         default: "completed"
     },
-    voidedAt: { type: Date },
-    voidedBy: { type: String },
-    voidReason: { type: String, maxlength: 200 }
+
+    voidedAt: {
+        type: Date
+    },
+
+    voidedBy: {
+        type: String
+    },
+
+    voidReason: {
+        type: String,
+        maxlength: 200
+    }
 }, {
     collection: "Transaction"
 });
 
-module.exports = mongoose.model("Transaction", transactionSchema);
+module.exports = mongoose.model(
+    "Transaction",
+    transactionSchema
+);

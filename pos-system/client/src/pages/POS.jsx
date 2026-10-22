@@ -45,7 +45,7 @@ function ProductImage({ product }) {
 
 function POS() {
     const [products, setProducts] = useState([]);
-    const [cart, setCart] = useState([]); // [{_id, name, price, quantity}]
+    const [cart, setCart] = useState([]); // Cart lines include lineId, product details, quantity, and notes.
     const [amountPaid, setAmountPaid] = useState("");
 
     const [search, setSearch] = useState("");
@@ -53,6 +53,7 @@ function POS() {
 
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [openNoteId, setOpenNoteId] = useState(null);
 
     // What the keypad is typing into: the payment, or one cart line's quantity.
     const [target, setTarget] = useState("paid"); // "paid" | cart item _id
@@ -75,31 +76,40 @@ function POS() {
 
     const addToCart = (product) => {
         setCart((prev) => {
-            const existing = prev.find((i) => i._id === product._id);
+            // Merge into the normal, uncustomized line. If the existing line has
+            // special instructions, create a separate line so a second serving
+            // can have different instructions (for example, regular + less spicy).
+            const existing = prev.find(
+                (i) => i._id === product._id && !(i.notes || "").trim()
+            );
+
             if (existing) {
                 return prev.map((i) =>
-                    i._id === product._id
+                    i.lineId === existing.lineId
                         ? { ...i, quantity: Math.min(MAX_QTY, i.quantity + 1) }
                         : i
                 );
             }
+
             return [
                 ...prev,
                 {
+                    lineId: `${product._id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                     _id: product._id,
                     name: product.name,
                     price: Number(product.price),
-                    quantity: 1
+                    quantity: 1,
+                    notes: ""
                 }
             ];
         });
     };
 
-    const changeQuantity = (id, delta) => {
+    const changeQuantity = (lineId, delta) => {
         setCart((prev) =>
             prev
                 .map((i) =>
-                    i._id === id
+                    i.lineId === lineId
                         ? {
                               ...i,
                               quantity: Math.min(MAX_QTY, i.quantity + delta)
@@ -110,13 +120,19 @@ function POS() {
         );
     };
 
-    const setQuantity = (id, quantity) =>
+    const setQuantity = (lineId, quantity) =>
         setCart((prev) =>
-            prev.map((i) => (i._id === id ? { ...i, quantity } : i))
+            prev.map((i) => (i.lineId === lineId ? { ...i, quantity } : i))
+        );
+
+    const updateItemNote = (lineId, notes) =>
+        setCart((prev) =>
+            prev.map((i) => (i.lineId === lineId ? { ...i, notes } : i))
         );
 
     const clearCart = () => {
         setCart([]);
+        setOpenNoteId(null);
         setAmountPaid("");
         setTarget("paid");
         setFresh(true);
@@ -129,7 +145,9 @@ function POS() {
 
     const quantityInCart = useMemo(() => {
         const map = {};
-        cart.forEach((i) => (map[i._id] = i.quantity));
+        cart.forEach((i) => {
+            map[i._id] = (map[i._id] || 0) + i.quantity;
+        });
         return map;
     }, [cart]);
 
@@ -137,10 +155,10 @@ function POS() {
 
     // The cart line being edited, or null when the keypad types the payment.
     const activeLine =
-        target === "paid" ? null : cart.find((i) => i._id === target) || null;
+        target === "paid" ? null : cart.find((i) => i.lineId === target) || null;
 
     const selectLine = (item) => {
-        setTarget(item._id);
+        setTarget(item.lineId);
         setFresh(true);
     };
 
@@ -158,7 +176,7 @@ function POS() {
     const pressKey = (key) => {
         /* ----- editing a quantity ----- */
         if (activeLine) {
-            const id = activeLine._id;
+            const id = activeLine.lineId;
             const digits = String(activeLine.quantity);
 
             if (key === "enter") return selectPayment();
@@ -279,7 +297,8 @@ function POS() {
                 items: cart.map((i) => ({
                     name: i.name,
                     price: i.price,
-                    quantity: i.quantity
+                    quantity: i.quantity,
+                    notes: (i.notes || "").trim()
                 })),
                 subtotal: total,
                 total,
@@ -373,50 +392,105 @@ function POS() {
                         </p>
                     ) : (
                         cart.map((item) => (
-                            <div
-                                className={
-                                    activeLine?._id === item._id
-                                        ? "cart-row active"
-                                        : "cart-row"
-                                }
-                                key={item._id}
-                            >
-                                <div className="cart-row-name">
-                                    <strong>{item.name}</strong>
-                                    <span>{peso(item.price)}</span>
+                            <div className="cart-line" key={item.lineId}>
+                                <div
+                                    className={
+                                        activeLine?.lineId === item.lineId
+                                            ? "cart-row active"
+                                            : "cart-row"
+                                    }
+                                >
+                                    <div className="cart-row-name">
+                                        <strong>{item.name}</strong>
+                                        <span>{peso(item.price)}</span>
+                                    </div>
+
+                                    <div className="qty-control">
+                                        <button
+                                            className="qty-step"
+                                            onClick={() =>
+                                                changeQuantity(item.lineId, -1)
+                                            }
+                                            aria-label={`Decrease ${item.name}`}
+                                        >
+                                            −
+                                        </button>
+                                        <button
+                                            className="qty-value"
+                                            onClick={() => selectLine(item)}
+                                            aria-label={`Edit quantity of ${item.name}`}
+                                        >
+                                            {item.quantity}
+                                        </button>
+                                        <button
+                                            className="qty-step"
+                                            onClick={() =>
+                                                changeQuantity(item.lineId, 1)
+                                            }
+                                            aria-label={`Increase ${item.name}`}
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+
+                                    <strong className="cart-row-total">
+                                        {peso(item.price * item.quantity)}
+                                    </strong>
                                 </div>
 
-                                <div className="qty-control">
-                                    <button
-                                        className="qty-step"
-                                        onClick={() =>
-                                            changeQuantity(item._id, -1)
-                                        }
-                                        aria-label={`Decrease ${item.name}`}
-                                    >
-                                        −
-                                    </button>
-                                    <button
-                                        className="qty-value"
-                                        onClick={() => selectLine(item)}
-                                        aria-label={`Edit quantity of ${item.name}`}
-                                    >
-                                        {item.quantity}
-                                    </button>
-                                    <button
-                                        className="qty-step"
-                                        onClick={() =>
-                                            changeQuantity(item._id, 1)
-                                        }
-                                        aria-label={`Increase ${item.name}`}
-                                    >
-                                        +
-                                    </button>
-                                </div>
+                                <div className="cart-note-section">
+                                    {item.notes.trim() && openNoteId !== item.lineId ? (
+                                        <p className="cart-note-preview">
+                                            <strong>Note:</strong> {item.notes}
+                                        </p>
+                                    ) : null}
 
-                                <strong className="cart-row-total">
-                                    {peso(item.price * item.quantity)}
-                                </strong>
+                                    <button
+                                        type="button"
+                                        className="cart-note-toggle"
+                                        onClick={() =>
+                                            setOpenNoteId((current) =>
+                                                current === item.lineId ? null : item.lineId
+                                            )
+                                        }
+                                    >
+                                        {openNoteId === item.lineId
+                                            ? "Close special instructions"
+                                            : item.notes.trim()
+                                                ? "Edit special instructions"
+                                                : "+ Add special instructions"}
+                                    </button>
+
+                                    {openNoteId === item.lineId && (
+                                        <div className="cart-note-editor">
+                                            <label htmlFor={`note-${item.lineId}`}>
+                                                Special instructions
+                                                {item.quantity > 1
+                                                    ? ` (applies to all ${item.quantity} in this line)`
+                                                    : ""}
+                                            </label>
+                                            <textarea
+                                                id={`note-${item.lineId}`}
+                                                rows="2"
+                                                maxLength={300}
+                                                value={item.notes}
+                                                placeholder="e.g. Less spicy, less garlic..."
+                                                onChange={(e) =>
+                                                    updateItemNote(item.lineId, e.target.value)
+                                                }
+                                            />
+                                            <div className="cart-note-editor-footer">
+                                                <span>{item.notes.length}/300</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOpenNoteId(null)}
+                                                >
+                                                    Done
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ))
                     )}
@@ -594,12 +668,17 @@ function POS() {
 
                         <div className="confirmation-items">
                             {cart.map((i) => (
-                                <div className="confirmation-item" key={i._id}>
+                                <div className="confirmation-item" key={i.lineId}>
                                     <div>
                                         <strong>{i.name}</strong>
                                         <span>
                                             {peso(i.price)} × {i.quantity}
                                         </span>
+                                        {i.notes?.trim() && (
+                                            <p className="confirmation-item-note">
+                                                <strong>Special instructions:</strong> {i.notes}
+                                            </p>
+                                        )}
                                     </div>
                                     <strong>{peso(i.price * i.quantity)}</strong>
                                 </div>

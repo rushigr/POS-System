@@ -274,3 +274,13 @@
 @media (min-width: 701px) {
     .txn-stats:has(> div:nth-child(4)) { grid-template-columns: repeat(4, 1fr); }
 }
+
+/* Special instructions attached to transaction line items */
+.txn-item-note {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

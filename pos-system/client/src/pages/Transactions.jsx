@@ -172,7 +172,14 @@ function TransactionRow({ transaction, open, onToggle, canVoid, onVoid }) {
                             <tbody>
                                 {items.map((item, index) => (
                                     <tr key={index}>
-                                        <td>{item.name}</td>
+                                        <td>
+                                            {item.name}
+                                            {item.notes?.trim() && (
+                                                <div className="txn-item-note">
+                                                    Note: {item.notes}
+                                                </div>
+                                            )}
+                                        </td>
                                         <td>{item.quantity}</td>
                                         <td>{peso(item.price)}</td>
                                         <td>{peso(item.price * item.quantity)}</td>
