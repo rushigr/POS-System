@@ -151,3 +151,8 @@
     margin-top: 16px;
 }
 .audit-modal-actions .audit-delete-btn { margin-left: 0; }
+
+
+/* ---------- sortable date header ---------- */
+.audit-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.audit-sortable:hover { color: #0f172a; }

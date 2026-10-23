@@ -87,6 +87,7 @@ function AuditLog() {
     const [pages, setPages] = useState(1);
     const [total, setTotal] = useState(0);
 
+    const [sort, setSort] = useState("desc"); // "desc" = newest first
     const [entityType, setEntityType] = useState("");
     const [actorInput, setActorInput] = useState("");
     const [actor, setActor] = useState(""); // applied filter
@@ -106,6 +107,7 @@ function AuditLog() {
     const [deletions, setDeletions] = useState([]);
     const [dPage, setDPage] = useState(1);
     const [dPages, setDPages] = useState(1);
+    const [dSort, setDSort] = useState("desc");
     const [dTotal, setDTotal] = useState(0);
     const [dLoading, setDLoading] = useState(false);
     const [dError, setDError] = useState("");
@@ -116,7 +118,7 @@ function AuditLog() {
         setError("");
 
         try {
-            const params = new URLSearchParams({ page, limit: 25 });
+            const params = new URLSearchParams({ page, limit: 25, sort });
             if (entityType) params.set("entityType", entityType);
             if (actor) params.set("actor", actor);
 
@@ -137,14 +139,14 @@ function AuditLog() {
         } finally {
             setLoading(false);
         }
-    }, [page, entityType, actor]);
+    }, [page, sort, entityType, actor]);
 
     const loadDeletions = useCallback(async () => {
         setDLoading(true);
         setDError("");
 
         try {
-            const params = new URLSearchParams({ page: dPage, limit: 25 });
+            const params = new URLSearchParams({ page: dPage, limit: 25, sort: dSort });
 
             const response = await fetch(
                 `${API_URL}/api/audit/deletions?${params.toString()}`,
@@ -163,7 +165,7 @@ function AuditLog() {
         } finally {
             setDLoading(false);
         }
-    }, [dPage]);
+    }, [dPage, dSort]);
 
     // admin-only page
     useEffect(() => {
@@ -183,6 +185,18 @@ function AuditLog() {
         if (tab === "audit") loadLogs();
         else loadDeletions();
     }, [navigate, tab, loadLogs, loadDeletions]);
+
+    const toggleSort = () => {
+        setPage(1);
+        setSelected([]);
+        setSort((s) => (s === "desc" ? "asc" : "desc"));
+    };
+
+    const toggleDSort = () => {
+        setDPage(1);
+        setOpenDeletion(null);
+        setDSort((s) => (s === "desc" ? "asc" : "desc"));
+    };
 
     const applyActorFilter = (e) => {
         e.preventDefault();
@@ -314,6 +328,19 @@ function AuditLog() {
                             <option value="Transaction">Transactions</option>
                         </select>
 
+                        <select
+                            value={sort}
+                            onChange={(e) => {
+                                setPage(1);
+                                setSelected([]);
+                                setSort(e.target.value);
+                            }}
+                            aria-label="Sort by date"
+                        >
+                            <option value="desc">Newest first</option>
+                            <option value="asc">Oldest first</option>
+                        </select>
+
                         <form onSubmit={applyActorFilter} className="audit-actor-form">
                             <input
                                 type="text"
@@ -352,7 +379,14 @@ function AuditLog() {
                                             aria-label="Select all entries on this page"
                                         />
                                     </th>
-                                    <th>When</th>
+                                    <th
+                                        className="audit-sortable"
+                                        onClick={toggleSort}
+                                        aria-sort={sort === "asc" ? "ascending" : "descending"}
+                                        title="Click to reverse the date order"
+                                    >
+                                        When {sort === "asc" ? "▲" : "▼"}
+                                    </th>
                                     <th>Admin</th>
                                     <th>Action</th>
                                     <th>Target</th>
@@ -411,6 +445,19 @@ function AuditLog() {
                     </p>
 
                     <div className="audit-filters">
+                        <select
+                            value={dSort}
+                            onChange={(e) => {
+                                setDPage(1);
+                                setOpenDeletion(null);
+                                setDSort(e.target.value);
+                            }}
+                            aria-label="Sort by date"
+                        >
+                            <option value="desc">Newest first</option>
+                            <option value="asc">Oldest first</option>
+                        </select>
+
                         <button className="audit-refresh" onClick={loadDeletions}>
                             Refresh
                         </button>
@@ -422,7 +469,14 @@ function AuditLog() {
                         <table className="audit-table">
                             <thead>
                                 <tr>
-                                    <th>When</th>
+                                    <th
+                                        className="audit-sortable"
+                                        onClick={toggleDSort}
+                                        aria-sort={dSort === "asc" ? "ascending" : "descending"}
+                                        title="Click to reverse the date order"
+                                    >
+                                        When {dSort === "asc" ? "▲" : "▼"}
+                                    </th>
                                     <th>Deleted by</th>
                                     <th>Reason</th>
                                     <th>Entries</th>
