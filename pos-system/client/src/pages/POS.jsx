@@ -591,23 +591,25 @@ function POS() {
                 </div>
 
                 <footer className="cart-footer">
-                    <div className="summary-line">
-                        <span>Subtotal</span>
-                        <span>{peso(subtotal)}</span>
-                    </div>
-
-                    {discountAmount > 0 && (
-                        <div className="summary-line discount-summary-line">
-                            <span>
-                                {discountTypeLabel(discountType)} ({discountRate}%)
-                            </span>
-                            <strong>−{peso(discountAmount)}</strong>
+                    <div className="cart-summary">
+                        <div className="summary-line">
+                            <span>Subtotal</span>
+                            <span>{peso(subtotal)}</span>
                         </div>
-                    )}
 
-                    <div className="summary-line total-line">
-                        <span>Total due</span>
-                        <span>{peso(total)}</span>
+                        {discountAmount > 0 && (
+                            <div className="summary-line discount-summary-line">
+                                <span>
+                                    {discountTypeLabel(discountType)} ({discountRate}%)
+                                </span>
+                                <strong>−{peso(discountAmount)}</strong>
+                            </div>
+                        )}
+
+                        <div className="summary-line total-line">
+                            <span>Total due</span>
+                            <span>{peso(total)}</span>
+                        </div>
                     </div>
 
                     <button
@@ -624,66 +626,68 @@ function POS() {
                         </strong>
                     </button>
 
-                    <div className="quick-cash">
-                        <button
-                            onClick={() => quickCash(total.toFixed(2))}
-                            disabled={total === 0}
-                        >
-                            Exact
-                        </button>
-                        {QUICK_CASH.map((amt) => (
+                    <div className="cart-payment">
+                        <div className="quick-cash">
                             <button
-                                key={amt}
-                                onClick={() => quickCash(String(amt))}
+                                onClick={() => quickCash(total.toFixed(2))}
+                                disabled={total === 0}
                             >
-                                ₱{amt}
+                                Exact
                             </button>
-                        ))}
-                    </div>
-
-                    <button
-                        type="button"
-                        className={
-                            "payment-display" +
-                            (activeLine ? "" : " active") +
-                            (amountPaid === "" ? " empty" : "")
-                        }
-                        onClick={selectPayment}
-                    >
-                        <span className="pd-label">Amount paid</span>
-                        <span className="pd-value">
-                            ₱{amountPaid === "" ? "0.00" : amountPaid}
-                        </span>
-                    </button>
-
-                    {activeLine && (
-                        <div className="numpad-hint">
-                            Editing quantity: <strong>{activeLine.name}</strong>
+                            {QUICK_CASH.map((amt) => (
+                                <button
+                                    key={amt}
+                                    onClick={() => quickCash(String(amt))}
+                                >
+                                    ₱{amt}
+                                </button>
+                            ))}
                         </div>
-                    )}
 
-                    <div className="numpad" role="group" aria-label="Number pad">
-                        {NUMPAD_KEYS.map((k) => (
-                            <button
-                                key={k.key}
-                                type="button"
-                                className={k.cls || ""}
-                                onClick={() => pressKey(k.key)}
-                                disabled={Boolean(activeLine) && k.key === "."}
-                                aria-label={k.name || k.key}
-                            >
-                                {k.key === "enter"
-                                    ? activeLine
-                                        ? "Done"
-                                        : "Charge"
-                                    : k.label || k.key}
-                            </button>
-                        ))}
-                    </div>
+                        <button
+                            type="button"
+                            className={
+                                "payment-display" +
+                                (activeLine ? "" : " active") +
+                                (amountPaid === "" ? " empty" : "")
+                            }
+                            onClick={selectPayment}
+                        >
+                            <span className="pd-label">Amount paid</span>
+                            <span className="pd-value">
+                                ₱{amountPaid === "" ? "0.00" : amountPaid}
+                            </span>
+                        </button>
 
-                    <div className="summary-line">
-                        <span>Change</span>
-                        <span>{peso(change)}</span>
+                        {activeLine && (
+                            <div className="numpad-hint">
+                                Editing quantity: <strong>{activeLine.name}</strong>
+                            </div>
+                        )}
+
+                        <div className="numpad" role="group" aria-label="Number pad">
+                            {NUMPAD_KEYS.map((k) => (
+                                <button
+                                    key={k.key}
+                                    type="button"
+                                    className={k.cls || ""}
+                                    onClick={() => pressKey(k.key)}
+                                    disabled={Boolean(activeLine) && k.key === "."}
+                                    aria-label={k.name || k.key}
+                                >
+                                    {k.key === "enter"
+                                        ? activeLine
+                                            ? "Done"
+                                            : "Charge"
+                                        : k.label || k.key}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="summary-line change-line">
+                            <span>Change</span>
+                            <span>{peso(change)}</span>
+                        </div>
                     </div>
 
                     <button

@@ -776,3 +776,87 @@
     .discount-trigger { align-items: flex-start; flex-direction: column; }
     .discount-trigger strong { max-width: 100%; text-align: left; }
 }
+
+
+/* ===================================================================
+   ORDER PANEL: roomier layout
+   (kept in media queries so the phone bottom sheet isn't overridden)
+   =================================================================== */
+
+/* grouped footer pieces (all screen sizes) */
+.cart-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+.cart-summary .total-line {
+    margin-top: 2px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+}
+.cart-payment { display: flex; flex-direction: column; gap: 12px; }
+.change-line { padding: 2px 4px 0; font-weight: 600; }
+
+@media (min-width: 901px) {
+    .pos-page { grid-template-columns: clamp(400px, 34vw, 480px) 1fr; }
+
+    /* if the screen is short, the panel scrolls instead of squeezing the items */
+    .cart-panel { overflow-y: auto; }
+
+    .cart-header { padding: 22px 24px 16px; }
+    .cart-header h2 { font-size: 22px; }
+
+    .cart-table-head,
+    .cart-row { grid-template-columns: 1fr 136px 90px; gap: 12px; padding-left: 24px; padding-right: 24px; }
+    .cart-table-head { padding-top: 10px; padding-bottom: 10px; }
+
+    .cart-items { flex: 1 1 auto; min-height: 200px; }
+    .cart-empty { margin-top: 56px; }
+
+    .cart-row { padding-top: 16px; padding-bottom: 12px; }
+    .cart-row-name { gap: 3px; }
+    .cart-row-name strong { font-size: 15px; }
+    .cart-row-total { font-size: 15px; }
+
+    .qty-control { gap: 6px; }
+    .qty-step { width: 32px; height: 32px; }
+    .qty-value { min-width: 42px; height: 34px; }
+
+    .cart-note-section { padding: 0 24px 16px; }
+
+    .cart-footer {
+        padding: 20px 24px 24px;
+        gap: 16px;
+        box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.05);
+    }
+
+    .quick-cash { gap: 8px; }
+    .quick-cash button { padding: 11px 0; }
+    .payment-display { padding: 12px 16px; }
+    .numpad { grid-auto-rows: 46px; gap: 8px; }
+    .pay-button { padding: 17px; }
+}
+
+/* short desktop screens: stay compact so the keypad is still reachable */
+@media (min-width: 901px) and (max-height: 760px) {
+    .cart-header { padding: 16px 24px 12px; }
+    .cart-row { padding-top: 12px; padding-bottom: 8px; }
+    .cart-note-section { padding-bottom: 12px; }
+    .cart-footer { padding: 14px 20px 16px; gap: 12px; }
+    .cart-payment { gap: 10px; }
+    .numpad { grid-auto-rows: 42px; gap: 6px; }
+    .pay-button { padding: 14px; }
+}
+
+@media (max-width: 900px) {
+    .cart-row { padding-top: 12px; padding-bottom: 10px; }
+    .cart-note-section { padding-bottom: 12px; }
+    .cart-items { max-height: 32dvh; }
+    .cart-footer { gap: 12px; }
+    .cart-summary { padding: 12px 14px; }
+    .cart-payment { gap: 10px; }
+}
