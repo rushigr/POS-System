@@ -12,7 +12,6 @@ import {
 import "./Dashboard.css";
 
 import API_URL from "../api";
-import { authHeaders } from "../utils/auth";
 import {
     addDays,
     addMonths,
@@ -109,9 +108,7 @@ function Dashboard() {
             try {
                 const [transactionResponse, productResponse] =
                     await Promise.all([
-                        fetch(`${API_URL}/api/transactions`, {
-                            headers: authHeaders()
-                        }),
+                        fetch(`${API_URL}/api/transactions`),
                         fetch(`${API_URL}/api/products`)
                     ]);
 

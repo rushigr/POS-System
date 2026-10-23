@@ -4,8 +4,6 @@ const User = require("../models/User");
 const UserSession = require("../models/UserSession");
 const Transaction = require("../models/Transaction");
 const adminOnly = require("../middleware/adminMiddleware");
-const { requireAuth, requireRoot } = require("../middleware/authMiddleware");
-const { logAudit } = require("../utils/audit");
 
 const router = express.Router();
 
@@ -27,18 +25,18 @@ async function createSessionForUser(user, now = new Date()) {
 }
 
 // Called automatically by the client while the user is signed in.
-router.post("/heartbeat", requireAuth, async (req, res) => {
+router.post("/heartbeat", async (req, res) => {
     try {
+        const username = String(req.headers["x-username"] || "").trim();
         const sessionId = req.body?.sessionId;
 
-        if (!sessionId || !mongoose.isValidObjectId(sessionId)) {
+        if (!username || !sessionId || !mongoose.isValidObjectId(sessionId)) {
             return res.status(401).json({
                 message: "Session missing. Please log out and log in again."
             });
         }
 
-        // req.user comes from the verified login token.
-        const user = await User.findById(req.user.id);
+        const user = await User.findOne({ username });
 
         if (!user) {
             return res.status(401).json({ message: "User not found" });
@@ -47,7 +45,8 @@ router.post("/heartbeat", requireAuth, async (req, res) => {
         const now = new Date();
         const session = await UserSession.findOne({
             _id: sessionId,
-            userId: user._id
+            userId: user._id,
+            username: user.username
         });
 
         if (!session) {
@@ -91,15 +90,16 @@ router.post("/heartbeat", requireAuth, async (req, res) => {
 
 // Called when the user clicks Logout. This timestamp is exact to the server's
 // receipt of the logout request. Closing a browser is detected by timeout.
-router.post("/logout", requireAuth, async (req, res) => {
+router.post("/logout", async (req, res) => {
     try {
+        const username = String(req.headers["x-username"] || "").trim();
         const sessionId = req.body?.sessionId;
 
-        if (sessionId && mongoose.isValidObjectId(sessionId)) {
+        if (username && sessionId && mongoose.isValidObjectId(sessionId)) {
             await UserSession.updateOne(
                 {
                     _id: sessionId,
-                    userId: req.user.id,
+                    username,
                     offlineAt: null
                 },
                 {
@@ -286,38 +286,6 @@ router.get("/", adminOnly, async (req, res) => {
     } catch (error) {
         console.error("Failed to load sessions:", error);
         return res.status(500).json({ message: "Failed to load user sessions" });
-    }
-});
-
-// Root only: delete the offline session history. Sessions that are currently
-// online are never touched.
-router.delete("/", requireRoot, async (req, res) => {
-    try {
-        const cutoff = new Date(Date.now() - INACTIVITY_TIMEOUT_MS);
-
-        const result = await UserSession.deleteMany({
-            $or: [
-                { offlineAt: { $ne: null } },
-                { lastSeenAt: { $lte: cutoff } }
-            ]
-        });
-
-        await logAudit(req, {
-            action: "SESSION_HISTORY_CLEAR",
-            entityType: "Log",
-            entityName: "Staff activity",
-            changes: [
-                { field: "sessions deleted", from: result.deletedCount, to: 0 }
-            ]
-        });
-
-        return res.json({
-            message: `Deleted ${result.deletedCount} offline session${result.deletedCount === 1 ? "" : "s"}.`,
-            deleted: result.deletedCount
-        });
-    } catch (error) {
-        console.error("Failed to clear sessions:", error);
-        return res.status(500).json({ message: "Failed to clear session history" });
     }
 });
 

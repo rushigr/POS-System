@@ -1,38 +1,19 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const Transaction = require("../models/Transaction");
-const UserSession = require("../models/UserSession");
 const adminOnly = require("../middleware/adminMiddleware");
-const { requireAuth } = require("../middleware/authMiddleware");
 const { logAudit } = require("../utils/audit");
 
 const router = express.Router();
 
-// Which transactions this account may see.
-//  - admins (and root): all of them
-//  - cashiers: only the ones made by their own account. Newer sales are matched
-//    by account ID. Older sales have no ID, so they fall back to the cashier
-//    name (and get an ID stamped on them if the account is ever renamed).
-const visibleTo = (user) => {
-    if (user.role === "admin") return {};
-
-    return {
-        $or: [
-            { cashierId: user.id },
-            { cashier: user.username, cashierId: null }
-        ]
-    };
-};
-
-//GET transactions (own sales for cashiers, everything for admins)
-router.get("/", requireAuth, async (req, res) => {
+//GET transactions
+router.get("/", async (req, res) => {
     try {
-        const transactions = await Transaction.find(visibleTo(req.user))
+        const transactions = await Transaction.find()
             .sort({ createdAt: -1 });
 
         res.json(transactions);
     } catch (error) {
-        console.error(error);
         res.status(500).json({
             message: "Failed to get transactions"
         });
@@ -40,43 +21,21 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 //CREATE transaction
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", async (req, res) => {
     try {
-        const body = req.body || {};
-
-        // Only these fields are accepted from the client. The cashier is always
-        // the logged-in account, and a sale can never arrive already voided.
-        const data = {
-            transactionNumber: body.transactionNumber,
-            items: body.items,
-            subtotal: body.subtotal,
-            discountType: body.discountType,
-            discountRate: body.discountRate,
-            discountAmount: body.discountAmount,
-            total: body.total,
-            amountPaid: body.amountPaid,
-            change: body.change,
-            paymentMethod: body.paymentMethod,
-            cashier: req.user.username,
-            cashierId: req.user.id,
-            sessionId: null
-        };
-
-        // Only link the sale to a session that belongs to this account.
-        if (typeof body.sessionId === "string" &&
-            mongoose.isValidObjectId(body.sessionId) &&
-            await UserSession.exists({ _id: body.sessionId, userId: req.user.id })) {
-            data.sessionId = body.sessionId;
-        }
+        // a new sale can never arrive already voided
+        const {
+            status,
+            voidedAt,
+            voidedBy,
+            voidReason,
+            ...data
+        } = req.body;
 
         const transaction = await Transaction.create(data);
 
         res.status(201).json(transaction);
     } catch (error) {
-        if (error.name === "ValidationError") {
-            return res.status(400).json({ message: "Invalid transaction data" });
-        }
-
         console.error(error);
 
         res.status(500).json({

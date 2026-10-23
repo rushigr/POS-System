@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./POS.css";
 import API_URL from "../api";
-import { authHeaders } from "../utils/auth";
 import Receipt from "../components/Receipt";
 
 const CATEGORIES = ["All", "Ramen", "Rice Meal", "Snacks", "Add-Ons"];
@@ -403,7 +402,7 @@ function POS() {
 
             const response = await fetch(`${API_URL}/api/transactions`, {
                 method: "POST",
-                headers: authHeaders({ "Content-Type": "application/json" }),
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(transaction)
             });
 

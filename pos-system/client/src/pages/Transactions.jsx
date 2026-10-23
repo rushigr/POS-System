@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./Transactions.css";
 import API_URL from "../api";
-import { authHeaders, getStoredUser } from "../utils/auth";
 import Receipt from "../components/Receipt";
 
 const PAGE_SIZE = 50;
@@ -295,15 +294,17 @@ function Transactions() {
     const [voidError, setVoidError] = useState("");
     const [voiding, setVoiding] = useState(false);
 
-    const currentUser = getStoredUser();
+    const currentUser = (() => {
+        try {
+            return JSON.parse(localStorage.getItem("user"));
+        } catch {
+            return null;
+        }
+    })();
     const isAdmin = currentUser?.role === "admin";
 
-    // Cashiers only ever receive their own transactions: the server filters
-    // them, this just changes the wording.
-    const isCashier = currentUser?.role === "cashier";
-
     useEffect(() => {
-        fetch(`${API_URL}/api/transactions`, { headers: authHeaders() })
+        fetch(`${API_URL}/api/transactions`)
             .then((response) => {
                 if (!response.ok) throw new Error("Failed to load");
                 return response.json();
@@ -427,7 +428,10 @@ function Transactions() {
                 `${API_URL}/api/transactions/${voidTarget._id}/void`,
                 {
                     method: "POST",
-                    headers: authHeaders({ "Content-Type": "application/json" }),
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-username": currentUser?.username || ""
+                    },
                     body: JSON.stringify({ reason })
                 }
             );
@@ -466,12 +470,7 @@ function Transactions() {
 
     return (
         <div className="txn-page">
-            <h1>{isCashier ? "My Transactions" : "Transaction History"}</h1>
-            {isCashier && (
-                <p className="txn-own-note">
-                    Showing only the sales made with your account ({currentUser?.username}).
-                </p>
-            )}
+            <h1>Transaction History</h1>
 
             {/* ----- controls ----- */}
             <div className="txn-controls">
@@ -493,11 +492,7 @@ function Transactions() {
                     <input
                         type="text"
                         className="txn-search"
-                        placeholder={
-                            isCashier
-                                ? "Search transaction no."
-                                : "Search transaction no. or cashier"
-                        }
+                        placeholder="Search transaction no. or cashier"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />

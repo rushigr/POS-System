@@ -30,7 +30,7 @@ async function logAudit(req, { action, entityType, entityId, entityName, changes
     try {
         await AuditLog.create({
             actor: req.user?.username || "unknown",
-            actorRole: req.user?.isRoot ? "root" : req.user?.role || "unknown",
+            actorRole: req.user?.role || "unknown",
             action,
             entityType,
             entityId: entityId ? String(entityId) : undefined,

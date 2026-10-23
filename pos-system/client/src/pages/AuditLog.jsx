@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./AuditLog.css";
 import API_URL from "../api";
-import { authHeaders, getStoredUser } from "../utils/auth";
 
 const ACTION_LABELS = {
     PRODUCT_CREATE: "Product added",
@@ -11,19 +10,12 @@ const ACTION_LABELS = {
     USER_CREATE: "User created",
     USER_UPDATE: "User updated",
     USER_DELETE: "User deleted",
-    TRANSACTION_VOID: "Transaction voided",
-    AUDIT_ENTRY_DELETE: "Log entry deleted",
-    AUDIT_CLEAR: "Audit log cleared",
-    SESSION_HISTORY_CLEAR: "Staff activity cleared"
+    TRANSACTION_VOID: "Transaction voided"
 };
 
 const actionClass = (action) => {
     if (action.endsWith("_CREATE")) return "audit-badge create";
-    if (
-        action.endsWith("_DELETE") ||
-        action.endsWith("_VOID") ||
-        action.endsWith("_CLEAR")
-    ) {
+    if (action.endsWith("_DELETE") || action.endsWith("_VOID")) {
         return "audit-badge delete";
     }
     return "audit-badge update";
@@ -49,18 +41,11 @@ function AuditLog() {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [notice, setNotice] = useState("");
-
-    // Only the root account can delete log entries.
-    const iAmRoot = getStoredUser()?.isRoot === true;
-
-    // what the root user is about to delete: { type: "one", log } | { type: "all" }
-    const [deleteTarget, setDeleteTarget] = useState(null);
-    const [confirmText, setConfirmText] = useState("");
-    const [deleting, setDeleting] = useState(false);
-    const [deleteError, setDeleteError] = useState("");
 
     const loadLogs = useCallback(async () => {
+        const savedUser = localStorage.getItem("user");
+        const user = savedUser ? JSON.parse(savedUser) : null;
+
         setLoading(true);
         setError("");
 
@@ -71,7 +56,7 @@ function AuditLog() {
 
             const response = await fetch(
                 `${API_URL}/api/audit?${params.toString()}`,
-                { headers: authHeaders() }
+                { headers: { "x-username": user?.username || "" } }
             );
 
             if (!response.ok) throw new Error("Failed to load audit log");
@@ -106,62 +91,6 @@ function AuditLog() {
         loadLogs();
     }, [navigate, loadLogs]);
 
-    const openDelete = (target) => {
-        setDeleteTarget(target);
-        setConfirmText("");
-        setDeleteError("");
-    };
-
-    const closeDelete = () => {
-        if (!deleting) setDeleteTarget(null);
-    };
-
-    const confirmDelete = async () => {
-        if (!deleteTarget || deleting) return;
-
-        setDeleting(true);
-        setDeleteError("");
-
-        try {
-            const isAll = deleteTarget.type === "all";
-
-            const response = await fetch(
-                isAll
-                    ? `${API_URL}/api/audit`
-                    : `${API_URL}/api/audit/${deleteTarget.log._id}`,
-                {
-                    method: "DELETE",
-                    headers: authHeaders({ "Content-Type": "application/json" }),
-                    // "Delete all" is limited to the filters currently applied.
-                    body: isAll
-                        ? JSON.stringify({ confirm: "DELETE", entityType, actor })
-                        : undefined
-                }
-            );
-
-            const data = await response.json().catch(() => ({}));
-
-            if (!response.ok) {
-                throw new Error(data.message || "Failed to delete");
-            }
-
-            setNotice(data.message || "Deleted.");
-            setDeleteTarget(null);
-            setPage(1);
-            await loadLogs();
-        } catch (err) {
-            setDeleteError(err.message || "Failed to delete");
-        } finally {
-            setDeleting(false);
-        }
-    };
-
-    useEffect(() => {
-        if (!notice) return undefined;
-        const timer = setTimeout(() => setNotice(""), 5000);
-        return () => clearTimeout(timer);
-    }, [notice]);
-
     const applyActorFilter = (e) => {
         e.preventDefault();
         setPage(1);
@@ -188,7 +117,6 @@ function AuditLog() {
                     <option value="Product">Products</option>
                     <option value="User">Users</option>
                     <option value="Transaction">Transactions</option>
-                    <option value="Log">Log deletions</option>
                 </select>
 
                 <form onSubmit={applyActorFilter} className="audit-actor-form">
@@ -204,21 +132,8 @@ function AuditLog() {
                 <button className="audit-refresh" onClick={loadLogs}>
                     Refresh
                 </button>
-
-                {iAmRoot && (
-                    <button
-                        type="button"
-                        className="audit-delete-all"
-                        onClick={() => openDelete({ type: "all" })}
-                        disabled={loading || total === 0}
-                        title="Root only"
-                    >
-                        Delete all{entityType || actor ? " matching" : ""} ({total})
-                    </button>
-                )}
             </div>
 
-            {notice && <p className="audit-notice">{notice}</p>}
             {error && <p className="audit-error">{error}</p>}
 
             <div className="audit-table-wrap">
@@ -230,14 +145,13 @@ function AuditLog() {
                             <th>Action</th>
                             <th>Target</th>
                             <th>Changes</th>
-                            {iAmRoot && <th>Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={iAmRoot ? 6 : 5} className="audit-empty">Loading...</td></tr>
+                            <tr><td colSpan="5" className="audit-empty">Loading...</td></tr>
                         ) : logs.length === 0 ? (
-                            <tr><td colSpan={iAmRoot ? 6 : 5} className="audit-empty">No audit entries found.</td></tr>
+                            <tr><td colSpan="5" className="audit-empty">No audit entries found.</td></tr>
                         ) : (
                             logs.map((log) => (
                                 <tr key={log._id}>
@@ -273,17 +187,6 @@ function AuditLog() {
                                             </ul>
                                         )}
                                     </td>
-                                    {iAmRoot && (
-                                        <td>
-                                            <button
-                                                type="button"
-                                                className="audit-row-delete"
-                                                onClick={() => openDelete({ type: "one", log })}
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    )}
                                 </tr>
                             ))
                         )}
@@ -306,88 +209,6 @@ function AuditLog() {
                     Next
                 </button>
             </div>
-
-            {deleteTarget && (
-                <div
-                    className="audit-modal-overlay"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget) closeDelete();
-                    }}
-                >
-                    <div
-                        className="audit-modal"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="audit-delete-title"
-                    >
-                        <h2 id="audit-delete-title">
-                            {deleteTarget.type === "all"
-                                ? `Delete ${total} log entr${total === 1 ? "y" : "ies"}?`
-                                : "Delete this log entry?"}
-                        </h2>
-
-                        {deleteTarget.type === "one" ? (
-                            <p>
-                                <strong>
-                                    {ACTION_LABELS[deleteTarget.log.action] ||
-                                        deleteTarget.log.action}
-                                </strong>
-                                {" by "}
-                                {deleteTarget.log.actor},{" "}
-                                {new Date(deleteTarget.log.createdAt).toLocaleString()}
-                            </p>
-                        ) : (
-                            <p>
-                                {entityType || actor
-                                    ? "Every entry matching the filters currently applied will be deleted."
-                                    : "Every entry in the audit log will be deleted."}
-                            </p>
-                        )}
-
-                        <p className="audit-modal-warning">
-                            This cannot be undone. A single note saying who deleted
-                            log entries, and when, is added to the log.
-                        </p>
-
-                        {deleteTarget.type === "all" && (
-                            <label className="audit-modal-confirm">
-                                Type <strong>DELETE</strong> to confirm
-                                <input
-                                    type="text"
-                                    value={confirmText}
-                                    onChange={(e) => setConfirmText(e.target.value)}
-                                    autoComplete="off"
-                                    autoFocus
-                                />
-                            </label>
-                        )}
-
-                        {deleteError && <p className="audit-error">{deleteError}</p>}
-
-                        <div className="audit-modal-actions">
-                            <button
-                                type="button"
-                                className="audit-refresh"
-                                onClick={closeDelete}
-                                disabled={deleting}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className="audit-delete-all"
-                                onClick={confirmDelete}
-                                disabled={
-                                    deleting ||
-                                    (deleteTarget.type === "all" && confirmText !== "DELETE")
-                                }
-                            >
-                                {deleting ? "Deleting..." : "Delete"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
