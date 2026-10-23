@@ -11,9 +11,21 @@ import Transactions from "./pages/Transactions";
 import Users from "./pages/Users";
 import AuditLog from "./pages/AuditLog";
 
+// Pages a cashier may open. Everything else is admin-only.
+const CASHIER_PATHS = ["/pos", "/transactions"];
+
 function getCurrentUser() {
     try {
-        return JSON.parse(localStorage.getItem("user") || "null");
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+
+        // A login saved before signed tokens existed can't call the API any
+        // more, so treat it as signed out and ask for a fresh login.
+        if (user && !user.token) {
+            localStorage.removeItem("user");
+            return null;
+        }
+
+        return user;
     } catch {
         return null;
     }
@@ -31,8 +43,8 @@ function ProtectedPage({ children, adminOnly = false }) {
         return <Navigate to="/" replace />;
     }
 
-    // Cashiers must remain on the POS page even if they type another URL.
-    if (user.role === "cashier" && location.pathname !== "/pos") {
+    // Cashiers can use the POS and view their own transactions only.
+    if (user.role === "cashier" && !CASHIER_PATHS.includes(location.pathname)) {
         return <Navigate to="/pos" replace />;
     }
 
@@ -65,7 +77,7 @@ function AppContent() {
                 <Route path="/dashboard" element={<ProtectedPage adminOnly><Dashboard /></ProtectedPage>} />
                 <Route path="/pos" element={<ProtectedPage><POS /></ProtectedPage>} />
                 <Route path="/products" element={<ProtectedPage adminOnly><Products /></ProtectedPage>} />
-                <Route path="/transactions" element={<ProtectedPage adminOnly><Transactions /></ProtectedPage>} />
+                <Route path="/transactions" element={<ProtectedPage><Transactions /></ProtectedPage>} />
                 <Route path="/users" element={<ProtectedPage adminOnly><Users /></ProtectedPage>} />
                 <Route path="/audit" element={<ProtectedPage adminOnly><AuditLog /></ProtectedPage>} />
                 <Route path="*" element={<Navigate to={user?.role === "cashier" ? "/pos" : user?.role === "admin" ? "/dashboard" : "/"} replace />} />

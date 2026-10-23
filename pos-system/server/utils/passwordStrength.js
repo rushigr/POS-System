@@ -19,6 +19,7 @@ function evaluatePassword(password = "", username = "") {
     ].filter(Boolean).length;
 
     const checks = {
+        noSpaces: !/\s/.test(password),
         length: password.length >= 8,
         long: password.length >= 12,
         notCommon: !BLOCKED_WORDS.some((w) => lower.includes(w)),
@@ -31,6 +32,7 @@ function evaluatePassword(password = "", username = "") {
     if (classes >= 3) score++;
     if (classes === 4) score++;
 
+    if (!checks.noSpaces) score = 0;
     if (!checks.length) score = Math.min(score, 1);
     if (!checks.notCommon || !checks.noUsername) score = Math.min(score, 1);
     if (!password) score = 0;
@@ -42,6 +44,7 @@ function evaluatePassword(password = "", username = "") {
 function validatePassword(password, username) {
     const { checks, score } = evaluatePassword(password, username);
 
+    if (!checks.noSpaces) return "Password cannot contain spaces";
     if (!checks.length) return "Password must be at least 8 characters";
     if (!checks.notCommon) return "Password is too common or predictable";
     if (!checks.noUsername) return "Password must not contain the username";

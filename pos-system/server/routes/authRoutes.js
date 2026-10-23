@@ -1,31 +1,40 @@
 const express = require("express");
 const User = require("../models/User");
 const UserSession = require("../models/UserSession");
+const { signToken } = require("../middleware/authMiddleware");
+const { hashPassword, verifyPassword } = require("../utils/passwords");
 
 const router = express.Router();
 
 router.post("/login", async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password } = req.body || {};
 
-        if (!username || !password) {
+        // Must be plain strings: an object here (e.g. {"$ne": null}) would be
+        // treated by MongoDB as a query operator.
+        if (typeof username !== "string" || typeof password !== "string" ||
+            !username.trim() || !password) {
             return res.status(400).json({
                 message: "Username and password are required"
             });
         }
 
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ username: username.trim() });
 
-        if (!user) {
+        const { ok, needsUpgrade } = user
+            ? await verifyPassword(password, user.password)
+            : { ok: false, needsUpgrade: false };
+
+        if (!ok) {
             return res.status(401).json({
                 message: "Invalid username or password"
             });
         }
 
-        if (user.password !== password) {
-            return res.status(401).json({
-                message: "Invalid username or password"
-            });
+        // Accounts made before hashing existed are upgraded on their next login.
+        if (needsUpgrade) {
+            user.password = await hashPassword(password);
+            await user.save();
         }
 
         const now = new Date();
@@ -45,7 +54,9 @@ router.post("/login", async (req, res) => {
                 id: user._id,
                 username: user.username,
                 role: user.role,
-                sessionId: String(session._id)
+                isRoot: user.isRoot === true,
+                sessionId: String(session._id),
+                token: signToken(user, session._id)
             }
         });
 

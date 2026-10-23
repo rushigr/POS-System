@@ -5,6 +5,7 @@
 }
 
 .txn-page h1 { margin-bottom: 20px; }
+.txn-page h1 + .txn-own-note { margin: -12px 0 20px; color: #64748b; font-size: 14px; }
 
 /* ----- controls ----- */
 .txn-controls {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Products.css";
 import API_URL from "../api";
+import { authHeaders as sharedAuthHeaders } from "../utils/auth";
 
 const CATEGORIES = ["Ramen", "Rice Meal", "Snacks", "Add-Ons"];
 const EMPTY_FORM = { name: "", category: "Ramen", price: "", image: "" };
@@ -64,19 +65,9 @@ function Products() {
 
     /* ---------- auth + loading ---------- */
 
-    // The server's adminOnly middleware reads the x-username header.
-    const authHeaders = () => {
-        let user = null;
-        try {
-            user = JSON.parse(localStorage.getItem("user"));
-        } catch {
-            user = null;
-        }
-
-        // No Content-Type here: for FormData the browser must set it itself
-        // (it includes the multipart boundary).
-        return { "x-username": user?.username || "" };
-    };
+    // Sends the signed login token. No Content-Type here: for FormData the
+    // browser must set it itself (it includes the multipart boundary).
+    const authHeaders = () => sharedAuthHeaders();
 
     const loadProducts = async () => {
         try {

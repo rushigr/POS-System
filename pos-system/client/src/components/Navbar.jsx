@@ -6,15 +6,10 @@ import {
 } from "react-router-dom";
 
 import API_URL from "../api";
+import { authHeaders, getStoredUser } from "../utils/auth";
 import "./Navbar.css";
 
-function readStoredUser() {
-    try {
-        return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-        return null;
-    }
-}
+const readStoredUser = getStoredUser;
 
 function Navbar() {
     const location = useLocation();
@@ -29,7 +24,9 @@ function Navbar() {
     const storedSessionId = user?.sessionId;
     const isAdmin = user?.role === "admin";
     const isCashier = user?.role === "cashier";
-    const roleLabel = isAdmin ? "Admin" : isCashier ? "Cashier" : "User";
+    const roleLabel = user?.isRoot
+        ? "Root"
+        : isAdmin ? "Admin" : isCashier ? "Cashier" : "User";
     const homePath = isCashier ? "/pos" : "/dashboard";
 
     // Close the mobile menu after navigating to another page.
@@ -59,12 +56,17 @@ function Navbar() {
                 try {
                     const response = await fetch(`${API_URL}/api/sessions/heartbeat`, {
                         method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "x-username": currentUser.username
-                        },
+                        headers: authHeaders({ "Content-Type": "application/json" }),
                         body: JSON.stringify({ sessionId })
                     });
+
+                    // The login token expired or the account was removed.
+                    if (response.status === 401) {
+                        stopped = true;
+                        localStorage.removeItem("user");
+                        navigate("/", { replace: true });
+                        return;
+                    }
 
                     if (!response.ok) return;
                     const data = await response.json();
@@ -132,10 +134,7 @@ function Navbar() {
             if (currentUser?.username && currentUser?.sessionId) {
                 await fetch(`${API_URL}/api/sessions/logout`, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-username": currentUser.username
-                    },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({ sessionId: currentUser.sessionId }),
                     keepalive: true
                 });
@@ -196,7 +195,7 @@ function Navbar() {
                 id="main-navigation-links"
                 className={`navbar-links${menuOpen ? " is-open" : ""}`}
             >
-                {/* Cashiers deliberately see POS only. */}
+                {/* Cashiers see the POS and their own transactions only. */}
                 {isAdmin && (
                     <Link to="/dashboard" className={linkClass("/dashboard")}>
                         Dashboard
@@ -206,6 +205,12 @@ function Navbar() {
                 {(isAdmin || isCashier) && (
                     <Link to="/pos" className={linkClass("/pos")}>
                         POS
+                    </Link>
+                )}
+
+                {isCashier && (
+                    <Link to="/transactions" className={linkClass("/transactions")}>
+                        My Transactions
                     </Link>
                 )}
 

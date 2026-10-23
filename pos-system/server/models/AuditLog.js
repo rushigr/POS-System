@@ -18,7 +18,7 @@ const auditLogSchema = new mongoose.Schema({
     entityType: {
         type: String,
         required: true,
-        enum: ["Product", "User", "Transaction"]
+        enum: ["Product", "User", "Transaction", "Log"]
     },
     entityId: { type: String },
     entityName: { type: String }, // snapshot, so it still reads well after deletion

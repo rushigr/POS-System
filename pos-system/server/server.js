@@ -11,6 +11,8 @@ const transactionRoutes = require("./routes/transactionRoutes");
 const userRoutes = require("./routes/userRoutes");
 const auditRoutes = require("./routes/auditRoutes");
 const sessionRoutes = require("./routes/sessionRoutes");
+const { ensureRootAccount } = require("./utils/rootAccount");
+const { initJwtSecret } = require("./utils/jwtSecret");
 
 const app = express();
 
@@ -19,8 +21,7 @@ const corsOptions = {
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
         "Content-Type",
-        "Authorization",
-        "x-username"
+        "Authorization"
     ],
     optionsSuccessStatus: 204
 };
@@ -46,6 +47,8 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
     try {
         await connectDB();
+        await initJwtSecret();
+        await ensureRootAccount();
 
         app.listen(PORT, "0.0.0.0", () => {
             console.log(`Server listening on port ${PORT}`);

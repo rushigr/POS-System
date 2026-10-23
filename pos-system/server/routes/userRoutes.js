@@ -1,9 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const User = require("../models/User");
+const Transaction = require("../models/Transaction");
 const adminOnly = require("../middleware/adminMiddleware");
 const { logAudit, diffFields } = require("../utils/audit");
 const { validatePassword } = require("../utils/passwordStrength");
+const { hashPassword } = require("../utils/passwords");
 
 const router = express.Router();
 
@@ -20,14 +22,16 @@ router.get("/", adminOnly, async (req, res) => {
 
 router.post("/", adminOnly, async (req, res) => {
     try {
-        const { username, password, role } = req.body;
+        const { username, password, role } = req.body || {};
 
-        if (!username?.trim() || !password) {
+        if (typeof username !== "string" || !username.trim() ||
+            typeof password !== "string" || !password) {
             return res.status(400).json({
                 message: "Username and password are required"
             });
         }
 
+        // The root account cannot be created here, only "admin" or "cashier".
         if (!["admin", "cashier"].includes(role)) {
             return res.status(400).json({
                 message: "Invalid user role"
@@ -52,7 +56,7 @@ router.post("/", adminOnly, async (req, res) => {
 
         const user = await User.create({
             username: username.trim(),
-            password,
+            password: await hashPassword(password),
             role
         });
 
@@ -72,7 +76,8 @@ router.post("/", adminOnly, async (req, res) => {
             user: {
                 _id: user._id,
                 username: user.username,
-                role: user.role
+                role: user.role,
+                isRoot: false
             }
         });
     } catch (error) {
@@ -91,9 +96,9 @@ router.put("/:id", adminOnly, async (req, res) => {
             });
         }
 
-        const { username, password, role } = req.body;
+        const { username, password, role } = req.body || {};
 
-        if (!username?.trim()) {
+        if (typeof username !== "string" || !username.trim()) {
             return res.status(400).json({
                 message: "Username is required"
             });
@@ -105,7 +110,10 @@ router.put("/:id", adminOnly, async (req, res) => {
             });
         }
 
-        if (password?.trim()) {
+        // An empty/missing password means "leave it unchanged".
+        const passwordProvided = typeof password === "string" && password.length > 0;
+
+        if (passwordProvided) {
             const passwordProblem = validatePassword(password, username.trim());
 
             if (passwordProblem) {
@@ -121,6 +129,23 @@ router.put("/:id", adminOnly, async (req, res) => {
             });
         }
 
+        // The root account is protected: only root can change it, and then
+        // only its password. Otherwise any admin could reset root's password
+        // and take it over.
+        if (user.isRoot) {
+            if (!req.user.isRoot) {
+                return res.status(403).json({
+                    message: "Only the root account can modify itself"
+                });
+            }
+
+            if (username.trim() !== user.username || role !== user.role) {
+                return res.status(400).json({
+                    message: "The root account's username and role cannot be changed"
+                });
+            }
+        }
+
         const duplicate = await User.findOne({
             username: username.trim(),
             _id: { $ne: user._id }
@@ -134,12 +159,20 @@ router.put("/:id", adminOnly, async (req, res) => {
 
         const before = { username: user.username, role: user.role };
 
+        // Older sales are linked to a cashier only by name. Pin them to this
+        // account before the name changes so a cashier keeps seeing their own.
+        if (before.username !== username.trim()) {
+            await Transaction.updateMany(
+                { cashier: before.username, cashierId: null },
+                { $set: { cashierId: user._id } }
+            );
+        }
+
         user.username = username.trim();
         user.role = role;
 
-        // leave password unchanged if blank.
-        if (password?.trim()) {
-            user.password = password;
+        if (passwordProvided) {
+            user.password = await hashPassword(password);
         }
 
         await user.save();
@@ -151,7 +184,7 @@ router.put("/:id", adminOnly, async (req, res) => {
         );
 
         // record THAT the password changed, never the value
-        if (password?.trim()) {
+        if (passwordProvided) {
             changes.push({ field: "password", from: "[hidden]", to: "[changed]" });
         }
 
@@ -170,7 +203,8 @@ router.put("/:id", adminOnly, async (req, res) => {
             user: {
                 _id: user._id,
                 username: user.username,
-                role: user.role
+                role: user.role,
+                isRoot: user.isRoot === true
             }
         });
     } catch (error) {
@@ -189,26 +223,29 @@ router.delete("/:id", adminOnly, async (req, res) => {
             });
         }
 
-        const currentUser = await User.findOne({
-            username: req.headers["x-username"]
-        });
-
-        if (!currentUser) {
-            return res.status(401).json({
-                message: "Authentication required"
-            });
-        }
-
         // prevents self delete lol
-        if (currentUser._id.toString() === req.params.id) {
+        if (String(req.user.id) === req.params.id) {
             return res.status(400).json({
                 message: "You cannot delete your own account"
             });
         }
 
-        const user = await User.findByIdAndDelete(req.params.id);
+        // The filter itself excludes root, so the root account can never be
+        // removed by this route, whoever asks.
+        const user = await User.findOneAndDelete({
+            _id: req.params.id,
+            isRoot: { $ne: true }
+        });
 
         if (!user) {
+            const target = await User.findById(req.params.id).select("isRoot");
+
+            if (target?.isRoot) {
+                return res.status(403).json({
+                    message: "The root account cannot be deleted"
+                });
+            }
+
             return res.status(404).json({
                 message: "User not found"
             });

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Users.css";
 import API_URL from "../api";
-import { evaluatePassword } from "../utils/passwordStrength";
+import { evaluatePassword, stripSpaces } from "../utils/passwordStrength";
+import { authHeaders, getStoredUser } from "../utils/auth";
 
 const formatSessionCurrency = (value) =>
     new Intl.NumberFormat("en-PH", {
@@ -65,27 +66,17 @@ function Users() {
         [password, username]
     );
 
-    const getCurrentUser = () => {
-        try {
-            return JSON.parse(localStorage.getItem("user"));
-        } catch {
-            return null;
-        }
-    };
+    const getCurrentUser = getStoredUser;
 
-    const getHeaders = () => {
-        const user = getCurrentUser();
+    const getHeaders = () => authHeaders({ "Content-Type": "application/json" });
 
-        return {
-            "Content-Type": "application/json",
-            "x-username": user?.username || ""
-        };
-    };
+    const me = getCurrentUser();
+    const iAmRoot = me?.isRoot === true;
 
-    const isSelf = (user) => {
-        const me = getCurrentUser();
-        return me?.id === user._id || me?._id === user._id;
-    };
+    const isSelf = (user) => me?.id === user._id || me?._id === user._id;
+
+    // Only root can edit the root account (and then only its password).
+    const canEdit = (user) => !user.isRoot || iAmRoot;
 
     const loadUsers = async () => {
         try {
@@ -127,6 +118,38 @@ function Users() {
             setSessionsError(error.message || "Unable to load session activity.");
         } finally {
             setSessionsLoading(false);
+        }
+    };
+
+    // Root only: delete the offline session history (online sessions are kept).
+    const [clearing, setClearing] = useState(false);
+
+    const clearSessionHistory = async () => {
+        if (clearing) return;
+
+        const ok = window.confirm(
+            "Delete all offline staff activity history? Sessions that are online right now are kept. This cannot be undone."
+        );
+        if (!ok) return;
+
+        setClearing(true);
+        try {
+            const response = await fetch(`${API_URL}/api/sessions`, {
+                method: "DELETE",
+                headers: getHeaders()
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data.message || "Failed to clear session history");
+            }
+
+            setSuccess(data.message);
+            await loadSessions();
+        } catch (error) {
+            setSessionsError(error.message || "Failed to clear session history");
+        } finally {
+            setClearing(false);
         }
     };
 
@@ -184,7 +207,7 @@ function Users() {
         setSuccess("");
 
         const cleanUsername = username.trim();
-        const passwordProvided = password.trim().length > 0;
+        const passwordProvided = password.length > 0;
 
         if (passwordProvided && !passwordResult.acceptable) {
             setError("Please choose a stronger password.");
@@ -265,6 +288,8 @@ function Users() {
     };
 
     const handleEdit = (user) => {
+        if (!canEdit(user)) return;
+
         setEditingId(user._id);
         setUsername(user.username);
         setRole(user.role);
@@ -351,6 +376,7 @@ function Users() {
     const { checks } = passwordResult;
 
     const requirements = [
+        { label: "No spaces", met: checks.noSpaces },
         { label: "At least 8 characters", met: checks.length },
         { label: "12+ characters (recommended)", met: checks.long },
         { label: "Upper and lowercase letters", met: checks.mixedCase },
@@ -361,6 +387,9 @@ function Users() {
             met: checks.notCommon && checks.noUsername
         }
     ];
+
+    const editingRoot =
+        editingId !== null && users.find((u) => u._id === editingId)?.isRoot === true;
 
     const passwordBlocksSubmit =
         password.length > 0 && !passwordResult.acceptable;
@@ -383,6 +412,8 @@ function Users() {
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder="Enter username"
                             required
+                            disabled={editingRoot}
+                            title={editingRoot ? "The root account's username cannot be changed" : ""}
                         />
                     </div>
 
@@ -394,7 +425,10 @@ function Users() {
                                 id="password"
                                 type={showPassword ? "text" : "password"}
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => setPassword(stripSpaces(e.target.value))}
+                                onKeyDown={(e) => {
+                                    if (e.key === " ") e.preventDefault();
+                                }}
                                 placeholder={
                                     editingId
                                         ? "Leave blank to keep current password"
@@ -454,6 +488,8 @@ function Users() {
                             id="role"
                             value={role}
                             onChange={(e) => setRole(e.target.value)}
+                            disabled={editingRoot}
+                            title={editingRoot ? "The root account's role cannot be changed" : ""}
                         >
                             <option value="cashier">Cashier</option>
                             <option value="admin">Admin</option>
@@ -513,9 +549,9 @@ function Users() {
 
                                     <td>
                                         <span
-                                            className={`role-badge ${user.role}`}
+                                            className={`role-badge ${user.isRoot ? "root" : user.role}`}
                                         >
-                                            {user.role}
+                                            {user.isRoot ? "root" : user.role}
                                         </span>
                                     </td>
 
@@ -525,6 +561,12 @@ function Users() {
                                                 type="button"
                                                 className="user-edit-button"
                                                 onClick={() => handleEdit(user)}
+                                                disabled={!canEdit(user)}
+                                                title={
+                                                    canEdit(user)
+                                                        ? "Edit user"
+                                                        : "Only the root account can edit itself"
+                                                }
                                             >
                                                 Edit
                                             </button>
@@ -533,11 +575,13 @@ function Users() {
                                                 type="button"
                                                 className="user-delete-button"
                                                 onClick={() => handleDelete(user)}
-                                                disabled={isSelf(user)}
+                                                disabled={isSelf(user) || user.isRoot}
                                                 title={
-                                                    isSelf(user)
-                                                        ? "You cannot delete your own account"
-                                                        : "Delete user"
+                                                    user.isRoot
+                                                        ? "The root account cannot be deleted"
+                                                        : isSelf(user)
+                                                          ? "You cannot delete your own account"
+                                                          : "Delete user"
                                                 }
                                             >
                                                 Delete
@@ -562,14 +606,28 @@ function Users() {
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        className="session-refresh-button"
-                        onClick={loadSessions}
-                        disabled={sessionsLoading}
-                    >
-                        {sessionsLoading ? "Refreshing..." : "Refresh"}
-                    </button>
+                    <div className="session-activity-buttons">
+                        <button
+                            type="button"
+                            className="session-refresh-button"
+                            onClick={loadSessions}
+                            disabled={sessionsLoading}
+                        >
+                            {sessionsLoading ? "Refreshing..." : "Refresh"}
+                        </button>
+
+                        {iAmRoot && (
+                            <button
+                                type="button"
+                                className="session-clear-button"
+                                onClick={clearSessionHistory}
+                                disabled={clearing || sessionsLoading}
+                                title="Root only: deletes offline session history"
+                            >
+                                {clearing ? "Clearing..." : "Clear offline history"}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="session-stat-cards">

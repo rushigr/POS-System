@@ -71,3 +71,47 @@
     margin-top: 18px;
 }
 .audit-pagination button:disabled { background: #94a3b8; cursor: not-allowed; }
+
+/* ----- root-only deletion ----- */
+.audit-notice {
+    padding: 10px 14px;
+    border-radius: 6px;
+    background: #dcfce7;
+    color: #166534;
+}
+
+.audit-delete-all { background: #fee2e2; color: #991b1b; font-weight: 600; }
+.audit-delete-all:hover:not(:disabled) { background: #fecaca; }
+.audit-delete-all:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.audit-row-delete {
+    padding: 6px 10px;
+    font-size: 13px;
+    background: #fee2e2;
+    color: #991b1b;
+}
+.audit-row-delete:hover { background: #fecaca; }
+
+.audit-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.55);
+}
+.audit-modal {
+    width: 100%;
+    max-width: 440px;
+    padding: 24px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.audit-modal h2 { margin: 0 0 10px; color: #111827; font-size: 20px; }
+.audit-modal p { margin: 0 0 12px; color: #374151; line-height: 1.5; }
+.audit-modal-warning { font-size: 13px; color: #991b1b !important; }
+.audit-modal-confirm { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; font-size: 14px; }
+.audit-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }

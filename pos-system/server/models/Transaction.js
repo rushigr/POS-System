@@ -12,6 +12,15 @@ const transactionSchema = new mongoose.Schema({
         required: true
     },
 
+    // The account that made the sale. Set by the server from the login token.
+    // Older transactions have none and are matched by the `cashier` name.
+    cashierId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+        index: true
+    },
+
     // Associates the sale with the login session that created it.
     // Optional for backwards compatibility with older transactions.
     sessionId: {
