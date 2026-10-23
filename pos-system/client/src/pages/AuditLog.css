@@ -156,3 +156,32 @@
 /* ---------- sortable date header ---------- */
 .audit-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 .audit-sortable:hover { color: #0f172a; }
+
+
+/* ---------- date range ---------- */
+.audit-range {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    color: #475569;
+    font-size: 14px;
+}
+.audit-range-label { font-weight: 600; color: #0f172a; }
+.audit-range input[type="date"] {
+    padding: 6px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font: inherit;
+}
+.audit-chip {
+    background: #e2e8f0;
+    color: #0f172a;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+}
+.audit-chip:hover { background: #cbd5e1; }
+.audit-chip.clear { background: #fee2e2; color: #991b1b; }
+.audit-chip.clear:hover { background: #fecaca; }

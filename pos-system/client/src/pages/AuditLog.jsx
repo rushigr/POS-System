@@ -39,6 +39,63 @@ const getUser = () => {
 
 const authHeaders = () => ({ "x-username": getUser()?.username || "" });
 
+const pad = (n) => String(n).padStart(2, "0");
+
+// local calendar date -> "YYYY-MM-DD" (what <input type="date"> uses)
+const toDateValue = (d) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+const daysAgo = (n) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return toDateValue(d);
+};
+
+// Whole local days -> exact timestamps, so the shop's timezone is respected.
+const rangeParams = (params, from, to) => {
+    if (from) params.set("from", new Date(`${from}T00:00:00`).toISOString());
+    if (to) params.set("to", new Date(`${to}T23:59:59.999`).toISOString());
+};
+
+function DateRangeFilter({ label, from, to, onChange }) {
+    const today = toDateValue(new Date());
+
+    return (
+        <div className="audit-range">
+            <span className="audit-range-label">{label}</span>
+            <input
+                type="date"
+                value={from}
+                max={to || undefined}
+                onChange={(e) => onChange(e.target.value, to)}
+                aria-label="From date"
+            />
+            <span>to</span>
+            <input
+                type="date"
+                value={to}
+                min={from || undefined}
+                onChange={(e) => onChange(from, e.target.value)}
+                aria-label="To date"
+            />
+            <button type="button" className="audit-chip" onClick={() => onChange(today, today)}>
+                Today
+            </button>
+            <button type="button" className="audit-chip" onClick={() => onChange(daysAgo(6), today)}>
+                Last 7 days
+            </button>
+            <button type="button" className="audit-chip" onClick={() => onChange(daysAgo(29), today)}>
+                Last 30 days
+            </button>
+            {(from || to) && (
+                <button type="button" className="audit-chip clear" onClick={() => onChange("", "")}>
+                    Clear
+                </button>
+            )}
+        </div>
+    );
+}
+
 function ChangesList({ changes }) {
     if (!changes || changes.length === 0) return "—";
 
@@ -88,6 +145,8 @@ function AuditLog() {
     const [total, setTotal] = useState(0);
 
     const [sort, setSort] = useState("desc"); // "desc" = newest first
+    const [from, setFrom] = useState("");
+    const [to, setTo] = useState("");
     const [entityType, setEntityType] = useState("");
     const [actorInput, setActorInput] = useState("");
     const [actor, setActor] = useState(""); // applied filter
@@ -108,17 +167,26 @@ function AuditLog() {
     const [dPage, setDPage] = useState(1);
     const [dPages, setDPages] = useState(1);
     const [dSort, setDSort] = useState("desc");
+    const [dFrom, setDFrom] = useState("");
+    const [dTo, setDTo] = useState("");
     const [dTotal, setDTotal] = useState(0);
     const [dLoading, setDLoading] = useState(false);
     const [dError, setDError] = useState("");
     const [openDeletion, setOpenDeletion] = useState(null);
 
     const loadLogs = useCallback(async () => {
-        setLoading(true);
         setError("");
+
+        if (from && to && from > to) {
+            setError("The 'from' date must be on or before the 'to' date.");
+            return;
+        }
+
+        setLoading(true);
 
         try {
             const params = new URLSearchParams({ page, limit: 25, sort });
+            rangeParams(params, from, to);
             if (entityType) params.set("entityType", entityType);
             if (actor) params.set("actor", actor);
 
@@ -130,6 +198,12 @@ function AuditLog() {
             if (!response.ok) throw new Error("Failed to load audit log");
 
             const data = await response.json();
+
+            // an out-of-date backend ignores ?sort= and never echoes it back
+            if (data.sort !== sort) {
+                setError("The server did not apply the sort order. Make sure the latest backend (auditRoutes.js) is deployed and restarted.");
+            }
+
             setLogs(data.logs);
             setPages(data.pages);
             setTotal(data.total);
@@ -139,14 +213,21 @@ function AuditLog() {
         } finally {
             setLoading(false);
         }
-    }, [page, sort, entityType, actor]);
+    }, [page, sort, from, to, entityType, actor]);
 
     const loadDeletions = useCallback(async () => {
-        setDLoading(true);
         setDError("");
+
+        if (dFrom && dTo && dFrom > dTo) {
+            setDError("The 'from' date must be on or before the 'to' date.");
+            return;
+        }
+
+        setDLoading(true);
 
         try {
             const params = new URLSearchParams({ page: dPage, limit: 25, sort: dSort });
+            rangeParams(params, dFrom, dTo);
 
             const response = await fetch(
                 `${API_URL}/api/audit/deletions?${params.toString()}`,
@@ -156,6 +237,11 @@ function AuditLog() {
             if (!response.ok) throw new Error("Failed to load deletion log");
 
             const data = await response.json();
+
+            if (data.sort !== dSort) {
+                setDError("The server did not apply the sort order. Make sure the latest backend (auditRoutes.js) is deployed and restarted.");
+            }
+
             setDeletions(data.deletions);
             setDPages(data.pages);
             setDTotal(data.total);
@@ -165,7 +251,7 @@ function AuditLog() {
         } finally {
             setDLoading(false);
         }
-    }, [dPage, dSort]);
+    }, [dPage, dSort, dFrom, dTo]);
 
     // admin-only page
     useEffect(() => {
@@ -196,6 +282,20 @@ function AuditLog() {
         setDPage(1);
         setOpenDeletion(null);
         setDSort((s) => (s === "desc" ? "asc" : "desc"));
+    };
+
+    const changeRange = (nextFrom, nextTo) => {
+        setPage(1);
+        setSelected([]);
+        setFrom(nextFrom);
+        setTo(nextTo);
+    };
+
+    const changeDRange = (nextFrom, nextTo) => {
+        setDPage(1);
+        setOpenDeletion(null);
+        setDFrom(nextFrom);
+        setDTo(nextTo);
     };
 
     const applyActorFilter = (e) => {
@@ -364,6 +464,13 @@ function AuditLog() {
                         </button>
                     </div>
 
+                    <DateRangeFilter
+                        label="Logged between"
+                        from={from}
+                        to={to}
+                        onChange={changeRange}
+                    />
+
                     {error && <p className="audit-error">{error}</p>}
 
                     <div className="audit-table-wrap">
@@ -462,6 +569,13 @@ function AuditLog() {
                             Refresh
                         </button>
                     </div>
+
+                    <DateRangeFilter
+                        label="Deleted between"
+                        from={dFrom}
+                        to={dTo}
+                        onChange={changeDRange}
+                    />
 
                     {dError && <p className="audit-error">{dError}</p>}
 
