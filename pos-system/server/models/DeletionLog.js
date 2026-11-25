@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-// A frozen copy of one audit entry, saved at the moment it was deleted.
+// frozen copy of one audit entry, saved at the moment it was deleted.
 const deletedEntrySchema = new mongoose.Schema({
     originalId: { type: String, required: true },
     actor: { type: String },
@@ -14,7 +14,6 @@ const deletedEntrySchema = new mongoose.Schema({
 }, { _id: false });
 
 const deletionLogSchema = new mongoose.Schema({
-    // who deleted the entries
     actor: { type: String, required: true, immutable: true },
     actorRole: { type: String, required: true, immutable: true },
 
@@ -22,7 +21,6 @@ const deletionLogSchema = new mongoose.Schema({
 
     deletedCount: { type: Number, required: true, immutable: true },
 
-    // full snapshot of everything that was removed
     entries: { type: [deletedEntrySchema], default: [], immutable: true },
 
     createdAt: { type: Date, default: Date.now, immutable: true }
@@ -33,8 +31,6 @@ const deletionLogSchema = new mongoose.Schema({
 deletionLogSchema.index({ createdAt: -1 });
 deletionLogSchema.index({ actor: 1, createdAt: -1 });
 
-// Append-only: once written, a deletion record can't be edited or removed
-// through the app. (There are also no routes for it.)
 const blocked = () => {
     throw new Error("Deletion log entries are permanent and cannot be modified");
 };

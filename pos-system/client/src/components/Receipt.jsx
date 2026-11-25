@@ -208,7 +208,6 @@ function Receipt({ transaction, onClose }) {
 
         printWindow.onafterprint = () => printWindow.close();
         printWindow.focus();
-        // The popup contains only the receipt, not the app's page layout.
         window.setTimeout(() => {
             if (!printWindow.closed) printWindow.print();
         }, 300);

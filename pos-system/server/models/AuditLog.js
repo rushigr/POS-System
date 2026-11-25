@@ -21,9 +21,7 @@ const auditLogSchema = new mongoose.Schema({
         enum: ["Product", "User", "Transaction"]
     },
     entityId: { type: String },
-    entityName: { type: String }, // snapshot, so it still reads well after deletion
-
-    // field-level before/after values
+    entityName: { type: String },
     changes: { type: [changeSchema], default: [] },
 
     createdAt: { type: Date, default: Date.now, immutable: true }

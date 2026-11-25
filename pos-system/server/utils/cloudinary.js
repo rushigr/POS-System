@@ -16,11 +16,6 @@ const isConfigured = () =>
         process.env.CLOUDINARY_API_SECRET
     );
 
-/**
- * Upload an in-memory image buffer. Resolves with the secure URL.
- * The image is capped at 800x800 and compressed on Cloudinary's side,
- * so the POS grid never downloads a full-size phone photo.
- */
 function uploadImage(buffer) {
     if (!isConfigured()) {
         const err = new Error("Image uploads are not configured on the server");
@@ -33,9 +28,6 @@ function uploadImage(buffer) {
             {
                 folder: FOLDER,
                 resource_type: "image",
-                // Every upload is cropped to exactly 800x600 (4:3, the same ratio
-                // the product cards use). gravity "auto" keeps the main subject
-                // (the bowl) in frame instead of blindly cropping the centre.
                 transformation: [
                     {
                         width: 800,
@@ -63,12 +55,6 @@ function uploadImage(buffer) {
     });
 }
 
-/**
- * Work out the public_id from one of OUR Cloudinary URLs, e.g.
- * https://res.cloudinary.com/<cloud>/image/upload/v123/pos-products/abc.jpg
- * -> "pos-products/abc". Returns null for anything else (pasted external
- * links are never touched).
- */
 function publicIdFromUrl(url) {
     if (!url || !isConfigured()) return null;
 
@@ -78,15 +64,13 @@ function publicIdFromUrl(url) {
     const rest = url
         .slice(prefix.length)
         .split("?")[0]
-        .replace(/^(?:[^/]+\/)*?v\d+\//, ""); // drop transformations + version
+        .replace(/^(?:[^/]+\/)*?v\d+\//, ""); 
 
     const withoutExt = rest.replace(/\.[^/.]+$/, "");
 
-    // only manage images that this app uploaded
     return withoutExt.startsWith(`${FOLDER}/`) ? withoutExt : null;
 }
 
-/** Best-effort delete: never throws, a failed cleanup must not break a request. */
 async function deleteImageByUrl(url) {
     const publicId = publicIdFromUrl(url);
     if (!publicId) return;

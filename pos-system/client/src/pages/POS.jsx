@@ -6,8 +6,6 @@ import Receipt from "../components/Receipt";
 const CATEGORIES = ["All", "Ramen", "Rice Meal", "Snacks", "Add-Ons"];
 const QUICK_CASH = [100, 200, 500, 1000];
 const MAX_QTY = 99;
-
-// Built-in keypad. "back" and "clear" are functions, "enter" depends on mode.
 const NUMPAD_KEYS = [
     { key: "7" }, { key: "8" }, { key: "9" },
     { key: "back", label: "⌫", name: "Backspace", cls: "np-fn" },
@@ -42,8 +40,6 @@ const getDiscountRate = (type, customRate) => {
     return 0;
 };
 
-// Shows the product photo, or a coloured initial tile if there's no
-// image or the URL fails to load.
 function ProductImage({ product }) {
     const [failed, setFailed] = useState(false);
 
@@ -68,7 +64,7 @@ function ProductImage({ product }) {
 
 function POS() {
     const [products, setProducts] = useState([]);
-    const [cart, setCart] = useState([]); // Cart lines include lineId, product details, quantity, and notes.
+    const [cart, setCart] = useState([]); 
     const [amountPaid, setAmountPaid] = useState("");
 
     const [search, setSearch] = useState("");
@@ -83,12 +79,8 @@ function POS() {
     const [pendingCustomDiscountRate, setPendingCustomDiscountRate] = useState("10");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [openNoteId, setOpenNoteId] = useState(null);
-
-    // What the keypad is typing into: the payment, or one cart line's quantity.
-    const [target, setTarget] = useState("paid"); // "paid" | cart item _id
-    // true = the next digit replaces the current value (like a calculator)
+    const [target, setTarget] = useState("paid");
     const [fresh, setFresh] = useState(true);
-    // phones: the order panel is a bottom sheet
     const [cartOpen, setCartOpen] = useState(false);
 
     useEffect(() => {
@@ -101,13 +93,8 @@ function POS() {
             .catch(console.error);
     }, []);
 
-    /* ---------- cart ---------- */
-
     const addToCart = (product) => {
         setCart((prev) => {
-            // Merge into the normal, uncustomized line. If the existing line has
-            // special instructions, create a separate line so a second serving
-            // can have different instructions (for example, regular + less spicy).
             const existing = prev.find(
                 (i) => i._id === product._id && !(i.notes || "").trim()
             );
@@ -240,9 +227,6 @@ function POS() {
         return map;
     }, [cart]);
 
-    /* ---------- keypad ---------- */
-
-    // The cart line being edited, or null when the keypad types the payment.
     const activeLine =
         target === "paid" ? null : cart.find((i) => i.lineId === target) || null;
 
@@ -263,7 +247,6 @@ function POS() {
     };
 
     const pressKey = (key) => {
-        /* ----- editing a quantity ----- */
         if (activeLine) {
             const id = activeLine.lineId;
             const digits = String(activeLine.quantity);
@@ -288,10 +271,9 @@ function POS() {
                 setQuantity(id, Number(next));
                 setFresh(false);
             }
-            return; // "." means nothing for a quantity
+            return;
         }
 
-        /* ----- typing the amount paid ----- */
         if (key === "enter") return openConfirmation();
 
         if (key === "clear") {
@@ -312,17 +294,15 @@ function POS() {
         if (key === ".") {
             next = base.includes(".") ? base : (base || "0") + ".";
         } else {
-            next = (base + key).replace(/^0+(?=\d)/, ""); // no leading zeros
+            next = (base + key).replace(/^0+(?=\d)/, ""); 
         }
 
-        // up to 7 whole digits and 2 decimals
         if (!/^\d{0,7}(\.\d{0,2})?$/.test(next)) return;
 
         setAmountPaid(next);
         setFresh(false);
     };
 
-    // Physical keyboard (desktop) drives the same keypad.
     const handlePhysicalKey = (e) => {
         if (showConfirmation || e.ctrlKey || e.metaKey || e.altKey) return;
 
@@ -352,7 +332,6 @@ function POS() {
         return () => window.removeEventListener("keydown", onKey);
     }, []);
 
-    // Stop the page behind the phone order sheet from scrolling.
     useEffect(() => {
         document.body.style.overflow = cartOpen ? "hidden" : "";
         return () => {

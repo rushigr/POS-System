@@ -1,6 +1,3 @@
-// Pure helpers for the Dashboard: date ranges, bucketing, product ranking
-// and the plain-English summary. No React in here, so it is easy to test.
-
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -12,8 +9,6 @@ export const currency = (value) =>
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     })}`;
-
-/* ---------- date helpers (viewer's local time) ---------- */
 
 const pad = (n) => String(n).padStart(2, "0");
 
@@ -32,7 +27,6 @@ export const fromMonthValue = (v) => {
 
 export const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-// Weeks run Monday to Sunday.
 export const startOfWeek = (d) => {
     const s = startOfDay(d);
     s.setDate(s.getDate() - ((s.getDay() + 6) % 7));
@@ -45,7 +39,6 @@ export const addDays = (d, n) => {
     return r;
 };
 
-// Add months, keeping the day of month where possible (Jan 31 + 1 -> Feb 28).
 export const addMonths = (d, n) => {
     const target = new Date(d.getFullYear(), d.getMonth() + n, 1);
     const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
@@ -63,9 +56,6 @@ const mediumDate = (d) =>
 
 const hourLabel = (h) => `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`;
 
-/* ---------- ranges ---------- */
-
-// Returns [start, end) for the chosen period type.
 export function getRange(mode, anchor) {
     const y = anchor.getFullYear();
     const m = anchor.getMonth();
@@ -81,7 +71,6 @@ export function getRange(mode, anchor) {
 }
 
 export function getPreviousRange(mode, [start, end]) {
-    // Custom: the same number of days immediately before the chosen period.
     if (mode === "custom") {
         const days = Math.max(1, Math.round((end - start) / DAY_MS));
         return [addDays(start, -days), start];
@@ -117,8 +106,6 @@ export function rangeName(mode, [start, end]) {
     return longDate(start);
 }
 
-/* ---------- totals, buckets, ranking ---------- */
-
 const itemQty = (item) => Number(item.quantity) || 1;
 
 export function totalsOf(txns) {
@@ -135,7 +122,6 @@ export function totalsOf(txns) {
     };
 }
 
-// Products ranked by quantity sold (ties broken by revenue, then name).
 export function rankProducts(txns) {
     const map = new Map();
 
@@ -160,7 +146,6 @@ export function rankProducts(txns) {
         );
 }
 
-// A custom period is charted per day up to ~2 months, per month beyond that.
 const CUSTOM_DAILY_MAX_DAYS = 62;
 
 export function customGranularity([start, end]) {
@@ -182,7 +167,6 @@ function bucketIndex(mode, date, start, granularity) {
     return date.getHours();
 }
 
-// One bar per month (year), day (month / week) or hour (day).
 export function buildBuckets(mode, txns, range) {
     const [start, end] = range;
     const y = start.getFullYear();
@@ -197,7 +181,6 @@ export function buildBuckets(mode, txns, range) {
             return { label: shortDate(d), full: longDate(d) };
         });
     } else if (mode === "custom") {
-        // one bar per calendar month, first and last month may be partial
         buckets = [];
         let cursor = start;
         while (cursor < end) {
@@ -252,7 +235,6 @@ export function buildBuckets(mode, txns, range) {
     buckets.forEach((b) => (b.sales = Math.round(b.sales * 100) / 100));
 
     if (mode === "day") {
-        // Show 8 AM–9 PM by default, widening if sales fall outside that.
         const active = buckets.filter((b) => b.count > 0).map((b) => b.hour);
         const from = Math.min(8, ...active);
         const to = Math.max(21, ...active);
@@ -262,9 +244,6 @@ export function buildBuckets(mode, txns, range) {
     return buckets;
 }
 
-/* ---------- segments for the best-seller tables ---------- */
-
-// Mon–Sun weeks, clipped to the month so the rows add up to the month total.
 export function weekSegments(year, month) {
     const first = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 1);
@@ -311,8 +290,6 @@ export function bestSellerRows(segments, parsed) {
     });
 }
 
-// Best-seller rows for a custom period: Mon–Sun weeks or calendar months,
-// clipped to the period so the rows add up to the period total.
 export function customSegments([start, end], by) {
     const segments = [];
     let cursor = start;
@@ -338,9 +315,6 @@ export function customSegments([start, end], by) {
     return segments;
 }
 
-/* ---------- summary statements ---------- */
-
-// Each statement is a list of parts: plain strings, or { b: "bold text" }.
 function buildSummary({ mode, name, prevName, totals, prevTotals, bestBucket, bestLabel, activeDays, ranked, inProgress }) {
     const unit = UNIT[mode];
     const out = [];
@@ -451,9 +425,6 @@ function buildSummary({ mode, name, prevName, totals, prevTotals, bestBucket, be
     return out;
 }
 
-/* ---------- everything the dashboard needs for one period ---------- */
-
-// For mode "custom", pass the chosen [start, end) as `custom`.
 export function analyzePeriod(mode, anchor, parsed, now = new Date(), custom = null) {
     const range = mode === "custom" && custom ? custom : getRange(mode === "custom" ? "month" : mode, anchor);
     const prevRange = getPreviousRange(mode, range);

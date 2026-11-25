@@ -11,8 +11,7 @@ function Login() {
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
-
-    // Already signed in on this device: route each role to its home page.
+    
     useEffect(() => {
         try {
             const savedUser = JSON.parse(localStorage.getItem("user") || "null");
@@ -72,16 +71,15 @@ function Login() {
 
                 <div className="login-showcase-content">
                     <span className="login-eyebrow">
-                        <span className="login-eyebrow-dot" /> THE HEART OF THE COUNTER
+                        <span className="login-eyebrow-dot" /> 
                     </span>
                     <h1>
-                        Good food.
+                        
                         <br />
-                        <span>Great service.</span>
+                        <span></span>
                     </h1>
                     <p className="login-showcase-description">
-                        Your counter, your team, your next great bowl. Sign in to keep
-                        every order running smoothly.
+                        POS System for cashiers.
                     </p>
 
                     <div className="login-ramen-art" aria-hidden="true">

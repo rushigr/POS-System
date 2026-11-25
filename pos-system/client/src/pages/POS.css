@@ -1,12 +1,10 @@
-/* ===== Layout: order panel on the left, catalog on the right ===== */
 .pos-page {
     display: grid;
     grid-template-columns: 400px 1fr;
-    height: calc(100vh - 64px); /* adjust 64px to your navbar height */
+    height: calc(100vh - 64px);
     background: #f1f5f9;
 }
 
-/* ===== ORDER PANEL ===== */
 .cart-panel {
     display: flex;
     flex-direction: column;
@@ -95,7 +93,6 @@
 }
 .cart-row-name span { font-size: 12px; color: #64748b; }
 
-/* Item-level special instructions */
 .cart-line { border-bottom: 1px solid #f1f5f9; }
 .cart-line .cart-row { border-bottom: 0; }
 .cart-note-section { padding: 0 20px 12px; }
@@ -185,7 +182,6 @@
 }
 .qty-step:hover { background: #cbd5e1; }
 
-/* tap the number to edit it with the keypad */
 .qty-value {
     min-width: 40px;
     height: 30px;
@@ -205,7 +201,6 @@
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
-/* ----- payment footer ----- */
 .cart-footer {
     padding: 16px 20px 20px;
     border-top: 1px solid #e2e8f0;
@@ -234,7 +229,6 @@
 }
 .quick-cash button:hover:not(:disabled) { background: #eff6ff; }
 
-/* ----- amount paid + keypad ----- */
 .payment-display {
     width: 100%;
     display: flex;
@@ -300,14 +294,12 @@
 }
 .numpad .np-enter:hover:not(:disabled) { background: #0a335c; }
 
-/* the phone-only pieces are hidden on larger screens */
 .cart-backdrop,
 .mobile-bar,
 .cart-close { display: none; }
 
 .cart-header-actions { display: flex; align-items: center; gap: 8px; }
 
-/* taps, not text selection or double-tap zoom */
 .pos-page button {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
@@ -325,7 +317,6 @@
 .pay-button:hover:not(:disabled) { background: #15803d; }
 .pay-button:disabled { background: #94a3b8; cursor: not-allowed; }
 
-/* ===== CATALOG PANEL ===== */
 .catalog-panel {
     display: flex;
     flex-direction: column;
@@ -361,7 +352,6 @@
     border-color: #0b3d6e;
 }
 
-/* ----- product grid ----- */
 .product-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -445,7 +435,6 @@
 
 .no-products { color: #64748b; text-align: center; margin-top: 40px; }
 
-/* ===== CONFIRM MODAL ===== */
 .confirmation-overlay {
     position: fixed;
     inset: 0;
@@ -494,15 +483,12 @@
 .confirm-button { background: #16a34a; }
 .confirm-button:hover:not(:disabled) { background: #15803d; }
 
-/* ===== Short desktop/tablet screens: keep the keypad on screen ===== */
+
 @media (min-width: 901px) and (max-height: 760px) {
     .numpad { grid-auto-rows: 40px; }
     .cart-footer { padding: 10px 16px 12px; gap: 8px; }
 }
 
-/* ===== Phones & portrait tablets =====
-   The catalog fills the screen; the order is a bottom sheet that opens
-   from a sticky "View order" bar. */
 @media (max-width: 900px) {
     .pos-page {
         display: block;
@@ -511,10 +497,10 @@
         padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
     }
 
-    /* ----- catalog ----- */
+  
     .catalog-panel { padding: 12px; gap: 12px; overflow: visible; }
 
-    .search-input { font-size: 16px; padding: 12px 16px; } /* 16px stops iOS zoom */
+    .search-input { font-size: 16px; padding: 12px 16px; }
 
     .category-tabs {
         flex-wrap: nowrap;
@@ -534,7 +520,6 @@
     .product-body { padding: 8px 10px 10px; }
     .product-card:hover { transform: none; }
 
-    /* ----- sticky bottom bar ----- */
     .mobile-bar {
         display: block;
         position: fixed;
@@ -561,7 +546,6 @@
     .mobile-bar-btn:hover { background: #15803d; }
     .mobile-bar-btn strong { font-size: 18px; }
 
-    /* ----- order bottom sheet ----- */
     .cart-backdrop {
         display: block;
         position: fixed;
@@ -628,7 +612,6 @@
 
     .cart-row-name strong { font-size: 15px; }
 
-    /* bigger touch targets */
     .qty-control { gap: 6px; }
     .qty-step { width: 40px; height: 40px; font-size: 20px; }
     .qty-value { min-width: 44px; height: 40px; font-size: 16px; }
@@ -640,7 +623,6 @@
     .numpad { grid-auto-rows: 50px; gap: 8px; }
     .pay-button { padding: 15px; }
 
-    /* ----- confirm modal ----- */
     .confirmation-overlay { align-items: flex-end; padding: 0; }
     .confirmation-modal {
         max-width: none;
@@ -651,7 +633,6 @@
     .confirmation-actions button { padding: 15px; }
 }
 
-/* ===== Small phones ===== */
 @media (max-width: 380px) {
     .cart-table-head,
     .cart-row { grid-template-columns: 1fr 138px 62px; }
@@ -661,8 +642,6 @@
     .numpad button { font-size: 18px; }
 }
 
-
-/* ----- discounts ----- */
 .discount-summary-line {
     color: #047857;
     font-size: 13px;
@@ -777,13 +756,6 @@
     .discount-trigger strong { max-width: 100%; text-align: left; }
 }
 
-
-/* ===================================================================
-   ORDER PANEL: roomier layout
-   (kept in media queries so the phone bottom sheet isn't overridden)
-   =================================================================== */
-
-/* grouped footer pieces (all screen sizes) */
 .cart-summary {
     display: flex;
     flex-direction: column;
@@ -804,7 +776,6 @@
 @media (min-width: 901px) {
     .pos-page { grid-template-columns: clamp(400px, 34vw, 480px) 1fr; }
 
-    /* if the screen is short, the panel scrolls instead of squeezing the items */
     .cart-panel { overflow-y: auto; }
 
     .cart-header { padding: 22px 24px 16px; }
@@ -841,7 +812,6 @@
     .pay-button { padding: 17px; }
 }
 
-/* short desktop screens: stay compact so the keypad is still reachable */
 @media (min-width: 901px) and (max-height: 760px) {
     .cart-header { padding: 16px 24px 12px; }
     .cart-row { padding-top: 12px; padding-bottom: 8px; }

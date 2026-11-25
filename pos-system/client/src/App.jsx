@@ -31,7 +31,6 @@ function ProtectedPage({ children, adminOnly = false }) {
         return <Navigate to="/" replace />;
     }
 
-    // Cashiers must remain on the POS page even if they type another URL.
     if (user.role === "cashier" && location.pathname !== "/pos") {
         return <Navigate to="/pos" replace />;
     }
@@ -48,7 +47,6 @@ function AppContent() {
     const user = getCurrentUser();
     const isLoginPage = location.pathname === "/" && !user;
 
-    // If an existing session visits the login URL, send it to the right home page.
     if (location.pathname === "/" && user?.role === "cashier") {
         return <Navigate to="/pos" replace />;
     }

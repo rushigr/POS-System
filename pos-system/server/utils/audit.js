@@ -1,9 +1,5 @@
 const AuditLog = require("../models/AuditLog");
 
-/**
- * Compare two plain objects and return [{ field, from, to }] for every
- * listed field whose value changed.
- */
 function diffFields(before, after, fields) {
     const changes = [];
 
@@ -19,13 +15,6 @@ function diffFields(before, after, fields) {
     return changes;
 }
 
-/**
- * Write one audit entry. Requires req.user (set by adminMiddleware).
- * A logging failure is reported to the console but never breaks the
- * admin's actual request.
- *
- * NEVER put passwords or other secrets in `changes`.
- */
 async function logAudit(req, { action, entityType, entityId, entityName, changes = [] }) {
     try {
         await AuditLog.create({

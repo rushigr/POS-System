@@ -56,7 +56,6 @@ function Users() {
     const [success, setSuccess] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
-    // The change waiting for the admin's confirmation, or null.
     const [pending, setPending] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
@@ -147,7 +146,6 @@ function Users() {
         loadUsers();
         loadSessions();
 
-        // Refresh active/offline status every 15 seconds while this page is open.
         const sessionRefresh = setInterval(() => {
             loadSessions();
         }, 15000);
@@ -155,13 +153,11 @@ function Users() {
         return () => clearInterval(sessionRefresh);
     }, [navigate]);
 
-    // Update elapsed session durations while the admin watches this page.
     useEffect(() => {
         const timer = setInterval(() => setSessionClock(Date.now()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // Success banner disappears on its own.
     useEffect(() => {
         if (!success) return;
         const timer = setTimeout(() => setSuccess(""), 4000);
@@ -175,8 +171,6 @@ function Users() {
         setRole("cashier");
         setShowPassword(false);
     };
-
-    /* ---------- step 1: build a summary and ask for confirmation ---------- */
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -295,8 +289,6 @@ function Users() {
         });
     };
 
-    /* ---------- step 2: actually send it after the admin confirms ---------- */
-
     const confirmPending = async () => {
         if (!pending || submitting) return;
 
@@ -345,8 +337,6 @@ function Users() {
             setPending(null);
         }
     };
-
-    /* ---------- password strength UI ---------- */
 
     const { checks } = passwordResult;
 

@@ -1,7 +1,3 @@
-// Keep this file in sync with client/src/utils/passwordStrength.js
-// The server check is the one that actually protects the system;
-// the client check only gives instant feedback.
-
 const BLOCKED_WORDS = [
     "password", "qwerty", "123456", "111111", "letmein",
     "welcome", "admin", "iloveyou", "ramen", "houdo"
@@ -38,7 +34,6 @@ function evaluatePassword(password = "", username = "") {
     return { checks, score };
 }
 
-// Returns an error message, or null if the password is acceptable.
 function validatePassword(password, username) {
     const { checks, score } = evaluatePassword(password, username);
 
